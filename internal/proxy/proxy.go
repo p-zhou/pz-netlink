@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"ssh-proxy/pkg/types"
+	"pz-netlink/pkg/types"
 )
 
 type Proxy struct {

@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"net/http"
 
-	"ssh-proxy/pkg/types"
+	"pz-netlink/pkg/types"
 )
 
 type Handler struct {

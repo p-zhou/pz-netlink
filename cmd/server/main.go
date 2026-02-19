@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"ssh-proxy/internal/forward"
-	"ssh-proxy/internal/proxy"
-	"ssh-proxy/internal/ssh"
-	"ssh-proxy/internal/storage"
-	"ssh-proxy/internal/web"
-	"ssh-proxy/pkg/types"
+	"pz-netlink/internal/forward"
+	"pz-netlink/internal/proxy"
+	"pz-netlink/internal/ssh"
+	"pz-netlink/internal/storage"
+	"pz-netlink/internal/web"
+	"pz-netlink/pkg/types"
 )
 
 type App struct {

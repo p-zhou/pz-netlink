@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"ssh-proxy/internal/ssh"
-	"ssh-proxy/pkg/types"
+	"pz-netlink/internal/ssh"
+	"pz-netlink/pkg/types"
 )
 
 type Forwarder struct {

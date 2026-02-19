@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"ssh-proxy/pkg/types"
+	"pz-netlink/pkg/types"
 )
 
 type Store struct {

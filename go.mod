@@ -1,4 +1,4 @@
-module ssh-proxy
+module pz-netlink
 
 go 1.21
 

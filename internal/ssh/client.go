@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
-	"ssh-proxy/pkg/types"
+	"pz-netlink/pkg/types"
 )
 
 type Client struct {
