@@ -1,20 +1,29 @@
 package web
 
 import (
+	"embed"
 	"encoding/json"
 	"html/template"
+	"io/fs"
 	"net/http"
 
 	"pz-netlink/pkg/types"
 )
+
+//go:embed templates/*.html
+var templateFS embed.FS
 
 type Handler struct {
 	templates *template.Template
 	manager   Manager
 }
 
-func NewHandler(manager Manager, templatesDir string) *Handler {
-	templates := template.Must(template.ParseGlob(templatesDir + "/*.html"))
+func NewHandler(manager Manager) *Handler {
+	templatesFS, err := fs.Sub(templateFS, "templates")
+	if err != nil {
+		panic(err)
+	}
+	templates := template.Must(template.ParseFS(templatesFS, "*.html"))
 	return &Handler{
 		templates: templates,
 		manager:   manager,

@@ -10,9 +10,7 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port         string `yaml:"port" json:"port"`
-	StaticDir    string `yaml:"static_dir" json:"static_dir"`
-	TemplatesDir string `yaml:"templates_dir" json:"templates_dir"`
+	Port string `yaml:"port" json:"port"`
 }
 
 type SSHServer struct {

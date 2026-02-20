@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSH服务器 - SSH 代理服务</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .header { background: #2563eb; color: white; padding: 1rem 2rem; }
+        .header h1 { font-size: 1.5rem; }
+        .nav { display: flex; gap: 1rem; margin-top: 1rem; }
+        .nav a { color: white; text-decoration: none; padding: 0.5rem 1rem; border-radius: 4px; }
+        .nav a:hover { background: rgba(255,255,255,0.1); }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h2 { margin-bottom: 1rem; color: #333; }
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-edit { background: #f59e0b; color: white; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f8fafc; font-weight: 600; color: #475569; }
+        .actions { display: flex; gap: 0.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: #475569; font-size: 0.875rem; }
+        .form-group input, .form-group select { width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 1rem; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 1.5rem; border-radius: 8px; width: 100%; max-width: 500px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>SSH 代理服务</h1>
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a href="/connections">连接</a>
+            <a href="/logs">日志</a>
+            <a href="/ssh-servers">SSH服务器</a>
+            <a href="/port-forwards">端口转发</a>
+            <a href="/http-proxy">HTTP代理</a>
+        </nav>
+    </header>
+    <main class="container">
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h2>SSH服务器</h2>
+                <button class="btn btn-primary" onclick="openModal()">添加服务器</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>主机</th>
+                        <th>端口</th>
+                        <th>用户名</th>
+                        <th>认证方式</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="serverTable">
+                    <tr><td colspan="6" style="text-align:center;">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div class="modal" id="serverModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">添加SSH服务器</h3>
+                <span style="cursor:pointer" onclick="closeModal()">&times;</span>
+            </div>
+            <form id="serverForm">
+                <input type="hidden" id="serverId">
+                <div class="form-group">
+                    <label>名称</label>
+                    <input type="text" id="serverName" required>
+                </div>
+                <div class="form-group">
+                    <label>主机地址</label>
+                    <input type="text" id="serverHost" required>
+                </div>
+                <div class="form-group">
+                    <label>端口</label>
+                    <input type="number" id="serverPort" value="22" required>
+                </div>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="serverUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>认证方式</label>
+                    <select id="serverAuthType">
+                        <option value="password">密码</option>
+                        <option value="key">密钥</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="serverPassword">
+                </div>
+                <div class="form-group">
+                    <label>私钥路径</label>
+                    <input type="text" id="serverPrivateKey" placeholder="/path/to/private_key">
+                </div>
+                <div class="form-group">
+                    <label>保活间隔(秒,0表示禁用)</label>
+                    <input type="number" id="serverKeepAlive" value="30">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" style="background:#e2e8f0" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let editingId = null;
+        async function loadServers() {
+            const servers = await fetch('/api/ssh-servers').then(r => r.json());
+            const tbody = document.getElementById('serverTable');
+            if(servers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无SSH服务器</td></tr>';
+                return;
+            }
+            tbody.innerHTML = servers.map(s => `
+                <tr>
+                    <td>${s.name}</td>
+                    <td>${s.host}</td>
+                    <td>${s.port}</td>
+                    <td>${s.username}</td>
+                    <td>${s.auth_type}</td>
+                    <td class="actions">
+                        <button class="btn btn-edit" onclick="editServer('${s.id}', '${s.name}', '${s.host}', ${s.port}, '${s.username}', '${s.auth_type}', '${s.private_key||''}', ${s.keep_alive_interval})">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteServer('${s.id}')">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        function openModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = '添加SSH服务器';
+            document.getElementById('serverForm').reset();
+            document.getElementById('serverModal').classList.add('active');
+        }
+        function closeModal() {
+            document.getElementById('serverModal').classList.remove('active');
+        }
+        function editServer(id, name, host, port, username, authType, privateKey, keepAlive) {
+            editingId = id;
+            document.getElementById('modalTitle').textContent = '编辑SSH服务器';
+            document.getElementById('serverId').value = id;
+            document.getElementById('serverName').value = name;
+            document.getElementById('serverHost').value = host;
+            document.getElementById('serverPort').value = port;
+            document.getElementById('serverUsername').value = username;
+            document.getElementById('serverAuthType').value = authType;
+            document.getElementById('serverPrivateKey').value = privateKey;
+            document.getElementById('serverKeepAlive').value = keepAlive;
+            document.getElementById('serverModal').classList.add('active');
+        }
+        document.getElementById('serverForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('serverName').value,
+                host: document.getElementById('serverHost').value,
+                port: parseInt(document.getElementById('serverPort').value),
+                username: document.getElementById('serverUsername').value,
+                auth_type: document.getElementById('serverAuthType').value,
+                password: document.getElementById('serverPassword').value,
+                private_key: document.getElementById('serverPrivateKey').value,
+                keep_alive_interval: parseInt(document.getElementById('serverKeepAlive').value)
+            };
+            if(editingId) {
+                data.id = editingId;
+                await fetch('/api/ssh-servers', { method: 'PUT', body: JSON.stringify(data) });
+            } else {
+                await fetch('/api/ssh-servers', { method: 'POST', body: JSON.stringify(data) });
+            }
+            closeModal();
+            loadServers();
+        };
+        async function deleteServer(id) {
+            if(confirm('确定要删除这个SSH服务器吗?')) {
+                await fetch('/api/ssh-servers?id=' + id, { method: 'DELETE' });
+                loadServers();
+            }
+        }
+        loadServers();
+    </script>
+</body>
+</html>

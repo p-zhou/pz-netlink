@@ -1,8 +1,6 @@
 {
   "server": {
-    "port": "8080",
-    "static_dir": "",
-    "templates_dir": "./web/templates"
+    "port": "8080"
   },
   "ssh_servers": [],
   "port_forwards": [],

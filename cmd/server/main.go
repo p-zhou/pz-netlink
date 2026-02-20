@@ -89,7 +89,7 @@ func (a *App) Start() error {
 		return err
 	}
 
-	a.handler = web.NewHandler(a, "./web/templates")
+	a.handler = web.NewHandler(a)
 	a.handler.RegisterRoutes(a.mux)
 
 	a.log("INFO", "Service started successfully", "")
@@ -403,8 +403,7 @@ func main() {
 		if os.IsNotExist(err) {
 			cfg := &types.Config{
 				Server: types.ServerConfig{
-					Port:         *port,
-					TemplatesDir: "./web/templates",
+					Port: *port,
 				},
 				SSHServers:   []types.SSHServer{},
 				PortForwards: []types.PortForward{},
