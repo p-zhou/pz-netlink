@@ -31,5 +31,6 @@ go.work.sum
 .idea/
 .vscode/
 
-# Output
+# Output and runtime
 pz-netlink
+.conf/config.toml
