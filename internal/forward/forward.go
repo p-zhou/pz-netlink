@@ -32,6 +32,23 @@ type connInfo struct {
 	clientIP string
 }
 
+type counterWriter struct {
+	conn  net.Conn
+	count *int64
+}
+
+func (cw *counterWriter) Write(p []byte) (int, error) {
+	n, err := cw.conn.Write(p)
+	if n > 0 {
+		atomic.AddInt64(cw.count, int64(n))
+	}
+	return n, err
+}
+
+func (cw *counterWriter) Close() error {
+	return cw.conn.Close()
+}
+
 func NewForwarder(cfg *types.PortForward, client *ssh.Client) *Forwarder {
 	return &Forwarder{
 		config: cfg,
@@ -147,8 +164,8 @@ func (f *Forwarder) handleConn(local net.Conn) {
 }
 
 func (f *Forwarder) copyToRemote(dst, src net.Conn) {
-	n, err := io.Copy(dst, src)
-	atomic.AddInt64(&f.bytesIn, n)
+	cw := &counterWriter{conn: dst, count: &f.bytesIn}
+	n, err := io.Copy(cw, src)
 	dst.Close()
 
 	if err != nil && err != io.EOF {
@@ -168,8 +185,8 @@ func (f *Forwarder) copyToRemote(dst, src net.Conn) {
 }
 
 func (f *Forwarder) copyFromRemote(dst, src net.Conn) {
-	n, err := io.Copy(dst, src)
-	atomic.AddInt64(&f.bytesOut, n)
+	cw := &counterWriter{conn: dst, count: &f.bytesOut}
+	n, err := io.Copy(cw, src)
 	dst.Close()
 
 	if err != nil && err != io.EOF {
