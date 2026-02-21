@@ -393,7 +393,7 @@ func (a *App) GetServerConfig() *types.ServerConfig {
 }
 
 func main() {
-	configPath := flag.String("config", "config.json", "path to config file")
+	configPath := flag.String("config", "config.toml", "path to config file")
 	port := flag.String("port", "8080", "web server port")
 	flag.Parse()
 

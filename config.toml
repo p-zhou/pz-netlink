@@ -1,0 +1,53 @@
+# 服务器配置
+[server]
+# Web 服务监听端口
+port = "8080"
+
+# SSH 服务器列表
+[[ssh_servers]]
+# SSH 服务器唯一标识
+id = ""
+# 服务器名称
+name = ""
+# 主机地址
+host = ""
+# SSH 端口
+port = 22
+# 用户名
+username = ""
+# 密码
+password = ""
+# 认证方式: password 或 key
+auth_type = "password"
+# 私钥文件路径 (auth_type 为 key 时使用)
+private_key = ""
+# 保活间隔(秒)，0 表示禁用
+keep_alive_interval = 30
+
+# 端口转发规则列表
+[[port_forwards]]
+# 转发规则唯一标识
+id = ""
+# 规则名称
+name = ""
+# 关联的 SSH 服务器 ID
+ssh_server_id = ""
+# 本地监听地址
+listen_host = "127.0.0.1"
+# 本地监听端口
+listen_port = 0
+# 远程主机地址
+remote_host = ""
+# 远程主机端口
+remote_port = 0
+# 是否启用
+enabled = false
+
+# HTTP 代理配置
+[http_proxy]
+# 是否启用 HTTP 代理
+enabled = false
+# HTTP 代理监听地址 (格式: host:port)
+listen = "0.0.0.0:1080"
+# 关联的 SSH 服务器 ID (留空则使用第一个可用的 SSH 服务器)
+ssh_server_id = ""
