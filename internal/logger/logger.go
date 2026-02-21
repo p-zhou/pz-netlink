@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"context"
+	"io"
 	"log/slog"
 	"os"
 	"sync"
@@ -11,12 +13,59 @@ var (
 	once   sync.Once
 )
 
+type textHandler struct {
+	opts slog.HandlerOptions
+	out  io.Writer
+	mu   sync.Mutex
+}
+
+func (h *textHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return level >= h.opts.Level.Level()
+}
+
+func (h *textHandler) Handle(ctx context.Context, r slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	ts := r.Time.Format("20060102 15:04:05.000")
+	level := r.Level.String()
+
+	var buf []byte
+	buf = append(buf, ts...)
+	buf = append(buf, " ["...)
+	buf = append(buf, level...)
+	buf = append(buf, "] "...)
+	buf = append(buf, r.Message...)
+
+	r.Attrs(func(a slog.Attr) bool {
+		buf = append(buf, ' ')
+		buf = append(buf, a.Key...)
+		buf = append(buf, '=')
+		buf = append(buf, a.Value.String()...)
+		return true
+	})
+
+	buf = append(buf, '\n')
+	_, err := h.out.Write(buf)
+	return err
+}
+
+func (h *textHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return h
+}
+
+func (h *textHandler) WithGroup(name string) slog.Handler {
+	return h
+}
+
 func Init(level string) {
 	once.Do(func() {
-		opts := &slog.HandlerOptions{
-			Level: parseLevel(level),
+		handler := &textHandler{
+			opts: slog.HandlerOptions{
+				Level: parseLevel(level),
+			},
+			out: os.Stdout,
 		}
-		handler := slog.NewTextHandler(os.Stdout, opts)
 		logger = slog.New(handler)
 	})
 }
