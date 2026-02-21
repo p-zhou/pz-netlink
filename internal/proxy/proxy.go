@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -23,6 +24,8 @@ type Proxy struct {
 	bytesIn   int64
 	bytesOut  int64
 	startTime time.Time
+	mu        sync.RWMutex
+	conns     map[string]net.Conn
 }
 
 func NewProxy(cfg *types.HTTPProxyConfig, dialer interface {
@@ -31,6 +34,7 @@ func NewProxy(cfg *types.HTTPProxyConfig, dialer interface {
 	return &Proxy{
 		config:    cfg,
 		sshDialer: dialer,
+		conns:     make(map[string]net.Conn),
 	}
 }
 
@@ -130,6 +134,11 @@ func (p *Proxy) handleConnect(client net.Conn, req *http.Request, clientIP strin
 	}
 	defer remote.Close()
 
+	connID := fmt.Sprintf("%s-%d", clientIP, time.Now().UnixNano())
+	p.mu.Lock()
+	p.conns[connID] = client
+	p.mu.Unlock()
+
 	logger.Info("HTTP代理CONNECT连接成功",
 		"client_ip", clientIP,
 		"target_host", host,
@@ -146,7 +155,7 @@ func (p *Proxy) handleConnect(client net.Conn, req *http.Request, clientIP strin
 		defer wg.Done()
 		n, err := io.Copy(remote, client)
 		atomic.AddInt64(&p.bytesIn, n)
-		if err != nil {
+		if err != nil && err != io.EOF {
 			logger.Warn("HTTP代理数据传输错误(客户端->远程)",
 				"client_ip", clientIP,
 				"target_host", host,
@@ -160,7 +169,7 @@ func (p *Proxy) handleConnect(client net.Conn, req *http.Request, clientIP strin
 		defer wg.Done()
 		n, err := io.Copy(client, remote)
 		atomic.AddInt64(&p.bytesOut, n)
-		if err != nil {
+		if err != nil && err != io.EOF {
 			logger.Warn("HTTP代理数据传输错误(远程->客户端)",
 				"client_ip", clientIP,
 				"target_host", host,
@@ -176,6 +185,10 @@ func (p *Proxy) handleConnect(client net.Conn, req *http.Request, clientIP strin
 		"target_host", host,
 		"duration", time.Since(startTransfer).String(),
 	)
+
+	p.mu.Lock()
+	delete(p.conns, connID)
+	p.mu.Unlock()
 }
 
 func (p *Proxy) handleHTTP(client net.Conn, req *http.Request, clientIP string) {
@@ -196,6 +209,11 @@ func (p *Proxy) handleHTTP(client net.Conn, req *http.Request, clientIP string) 
 	}
 	defer remote.Close()
 
+	connID := fmt.Sprintf("%s-%d", clientIP, time.Now().UnixNano())
+	p.mu.Lock()
+	p.conns[connID] = client
+	p.mu.Unlock()
+
 	logger.Info("HTTP代理HTTP连接成功",
 		"client_ip", clientIP,
 		"target_host", host,
@@ -209,7 +227,7 @@ func (p *Proxy) handleHTTP(client net.Conn, req *http.Request, clientIP string) 
 		"target_host", host,
 		"bytes", n,
 	)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		logger.Warn("HTTP代理数据传输错误",
 			"client_ip", clientIP,
 			"target_host", host,
@@ -217,6 +235,10 @@ func (p *Proxy) handleHTTP(client net.Conn, req *http.Request, clientIP string) 
 			"error", err,
 		)
 	}
+
+	p.mu.Lock()
+	delete(p.conns, connID)
+	p.mu.Unlock()
 }
 
 func (p *Proxy) Stop() error {
@@ -238,14 +260,19 @@ func (p *Proxy) GetStatus() *types.ConnectionStatus {
 		status = "connected"
 	}
 
+	p.mu.RLock()
+	activeConns := len(p.conns)
+	p.mu.RUnlock()
+
 	return &types.ConnectionStatus{
-		ID:        "http-proxy",
-		Type:      "http_proxy",
-		Name:      "HTTP Proxy",
-		LocalAddr: p.config.Listen,
-		Status:    status,
-		BytesIn:   atomic.LoadInt64(&p.bytesIn),
-		BytesOut:  atomic.LoadInt64(&p.bytesOut),
-		StartedAt: p.startTime,
+		ID:                "http-proxy",
+		Type:              "http_proxy",
+		Name:              "HTTP Proxy",
+		LocalAddr:         p.config.Listen,
+		Status:            status,
+		BytesIn:           atomic.LoadInt64(&p.bytesIn),
+		BytesOut:          atomic.LoadInt64(&p.bytesOut),
+		StartedAt:         p.startTime,
+		ActiveConnections: activeConns,
 	}
 }

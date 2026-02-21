@@ -43,16 +43,17 @@ type HTTPProxyConfig struct {
 }
 
 type ConnectionStatus struct {
-	ID         string    `json:"id"`
-	Type       string    `json:"type"`
-	Name       string    `json:"name"`
-	LocalAddr  string    `json:"local_addr"`
-	RemoteAddr string    `json:"remote_addr"`
-	Status     string    `json:"status"`
-	BytesIn    int64     `json:"bytes_in"`
-	BytesOut   int64     `json:"bytes_out"`
-	StartedAt  time.Time `json:"started_at"`
-	LastError  string    `json:"last_error,omitempty"`
+	ID                string    `json:"id"`
+	Type              string    `json:"type"`
+	Name              string    `json:"name"`
+	LocalAddr         string    `json:"local_addr"`
+	RemoteAddr        string    `json:"remote_addr"`
+	Status            string    `json:"status"`
+	BytesIn           int64     `json:"bytes_in"`
+	BytesOut          int64     `json:"bytes_out"`
+	StartedAt         time.Time `json:"started_at"`
+	LastError         string    `json:"last_error,omitempty"`
+	ActiveConnections int       `json:"active_connections"`
 }
 
 type LogEntry struct {

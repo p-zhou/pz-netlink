@@ -249,16 +249,21 @@ func (f *Forwarder) GetStatus() *types.ConnectionStatus {
 		status = "connected"
 	}
 
+	f.mu.RLock()
+	activeConns := len(f.conns)
+	f.mu.RUnlock()
+
 	return &types.ConnectionStatus{
-		ID:         f.config.ID,
-		Type:       "port_forward",
-		Name:       f.config.Name,
-		LocalAddr:  fmt.Sprintf("%s:%d", f.config.ListenHost, f.config.ListenPort),
-		RemoteAddr: fmt.Sprintf("%s:%d", f.config.RemoteHost, f.config.RemotePort),
-		Status:     status,
-		BytesIn:    atomic.LoadInt64(&f.bytesIn),
-		BytesOut:   atomic.LoadInt64(&f.bytesOut),
-		StartedAt:  f.startedAt,
+		ID:                f.config.ID,
+		Type:              "port_forward",
+		Name:              f.config.Name,
+		LocalAddr:         fmt.Sprintf("%s:%d", f.config.ListenHost, f.config.ListenPort),
+		RemoteAddr:        fmt.Sprintf("%s:%d", f.config.RemoteHost, f.config.RemotePort),
+		Status:            status,
+		BytesIn:           atomic.LoadInt64(&f.bytesIn),
+		BytesOut:          atomic.LoadInt64(&f.bytesOut),
+		StartedAt:         f.startedAt,
+		ActiveConnections: activeConns,
 	}
 }
 
