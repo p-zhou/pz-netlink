@@ -2,12 +2,17 @@ package storage
 
 import (
 	"bytes"
+	_ "embed"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/BurntSushi/toml"
 	"pz-netlink/pkg/types"
 )
+
+//go:embed config.toml
+var defaultConfig []byte
 
 type Store struct {
 	path string
@@ -26,10 +31,13 @@ func (s *Store) Load() (*types.Config, error) {
 	data, err := os.ReadFile(s.path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			s.data = &types.Config{}
-			return s.data, nil
+			if err := s.createFromTemplate(); err != nil {
+				return nil, err
+			}
+			data = defaultConfig
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 
 	cfg := &types.Config{}
@@ -39,6 +47,16 @@ func (s *Store) Load() (*types.Config, error) {
 
 	s.data = cfg
 	return s.data, nil
+}
+
+func (s *Store) createFromTemplate() error {
+	dir := filepath.Dir(s.path)
+	if dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	}
+	return os.WriteFile(s.path, defaultConfig, 0644)
 }
 
 func (s *Store) Save(cfg *types.Config) error {
