@@ -26,6 +26,7 @@ type App struct {
 	config      *types.Config
 	mux         *http.ServeMux
 	handler     *web.Handler
+	httpServer  *http.Server
 	forwarders  map[string]*forward.Forwarder
 	httpProxy   *proxy.Proxy
 	sshClients  map[string]*ssh.Client
@@ -46,6 +47,7 @@ func NewApp(configPath string) *App {
 		sshClients: make(map[string]*ssh.Client),
 		ctx:        ctx,
 		cancel:     cancel,
+		httpServer: &http.Server{},
 	}
 }
 
@@ -77,6 +79,12 @@ func (a *App) log(level, msg, connID string) {
 }
 
 func (a *App) Start() error {
+	// 重新创建 mux 和 context，清除之前的状态
+	a.mux = http.NewServeMux()
+	ctx, cancel := context.WithCancel(context.Background())
+	a.ctx = ctx
+	a.cancel = cancel
+
 	a.log("INFO", "Starting SSH Proxy Service", "")
 
 	if err := a.startSSHClients(); err != nil {
@@ -95,6 +103,11 @@ func (a *App) Start() error {
 
 	a.handler = web.NewHandler(a)
 	a.handler.RegisterRoutes(a.mux)
+
+	// 更新 httpServer 的 handler
+	if a.httpServer != nil {
+		a.httpServer.Handler = a.mux
+	}
 
 	a.log("INFO", "Service started successfully", "")
 	return nil
@@ -521,7 +534,7 @@ func main() {
 		addr = ":" + *port
 	}
 
-	server := &http.Server{
+	app.httpServer = &http.Server{
 		Addr:    addr,
 		Handler: app.mux,
 	}
@@ -529,7 +542,7 @@ func main() {
 	go func() {
 		logger.Info("Web服务器启动", "addr", addr)
 		log.Printf("Server starting on %s", addr)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := app.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("Web服务器错误", "error", err)
 			log.Fatal(err)
 		}
@@ -542,7 +555,7 @@ func main() {
 	logger.Info("收到停止信号")
 	log.Println("Shutting down...")
 	app.Stop()
-	server.Shutdown(context.Background())
+	app.httpServer.Shutdown(context.Background())
 	logger.Info("===== 服务停止 =====")
 }
 
