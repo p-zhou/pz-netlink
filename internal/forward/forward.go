@@ -129,47 +129,70 @@ func (f *Forwarder) handleConn(local net.Conn) {
 	f.conns[connID] = info
 	f.mu.Unlock()
 
-	go f.copyToRemote(local, remote)
-	go f.copyFromRemote(remote, local)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		f.copyToRemote(local, remote)
+	}()
+
+	go func() {
+		defer wg.Done()
+		f.copyFromRemote(remote, local)
+	}()
+
+	wg.Wait()
+	f.removeConn(local, remote)
 }
 
 func (f *Forwarder) copyToRemote(dst, src net.Conn) {
 	n, err := io.Copy(dst, src)
 	atomic.AddInt64(&f.bytesIn, n)
 	dst.Close()
-	src.Close()
-	if err != nil {
+
+	if err != nil && err != io.EOF {
 		logger.Warn("端口转发数据传输错误(本地->远程)",
 			"forward_name", f.config.Name,
 			"forward_id", f.config.ID,
 			"bytes", n,
 			"error", err,
 		)
+	} else if err == nil {
+		logger.Debug("端口转发数据传输完成(本地->远程)",
+			"forward_name", f.config.Name,
+			"forward_id", f.config.ID,
+			"bytes", n,
+		)
 	}
-	f.removeConn(dst)
 }
 
 func (f *Forwarder) copyFromRemote(dst, src net.Conn) {
 	n, err := io.Copy(dst, src)
 	atomic.AddInt64(&f.bytesOut, n)
 	dst.Close()
-	src.Close()
-	if err != nil {
+
+	if err != nil && err != io.EOF {
 		logger.Warn("端口转发数据传输错误(远程->本地)",
 			"forward_name", f.config.Name,
 			"forward_id", f.config.ID,
 			"bytes", n,
 			"error", err,
 		)
+	} else if err == nil {
+		logger.Debug("端口转发数据传输完成(远程->本地)",
+			"forward_name", f.config.Name,
+			"forward_id", f.config.ID,
+			"bytes", n,
+		)
 	}
-	f.removeConn(src)
 }
 
-func (f *Forwarder) removeConn(conn net.Conn) {
+func (f *Forwarder) removeConn(local, remote net.Conn) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for id, info := range f.conns {
-		if info.local == conn || info.remote == conn {
+		if info.local == local && info.remote == remote {
 			duration := time.Since(info.startAt)
 			logger.Info("端口转发连接关闭",
 				"forward_name", f.config.Name,
