@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"pz-netlink/internal/logger"
 	"pz-netlink/internal/ssh"
 	"pz-netlink/pkg/types"
 )
@@ -40,8 +41,21 @@ func NewForwarder(cfg *types.PortForward, client *ssh.Client) *Forwarder {
 
 func (f *Forwarder) Start() error {
 	addr := fmt.Sprintf("%s:%d", f.config.ListenHost, f.config.ListenPort)
+	logger.Info("启动端口转发服务",
+		"forward_name", f.config.Name,
+		"forward_id", f.config.ID,
+		"listen_addr", addr,
+		"remote_addr", fmt.Sprintf("%s:%d", f.config.RemoteHost, f.config.RemotePort),
+		"ssh_server_id", f.config.SSHServerID,
+	)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
+		logger.Error("端口转发服务启动失败",
+			"forward_name", f.config.Name,
+			"forward_id", f.config.ID,
+			"listen_addr", addr,
+			"error", err,
+		)
 		return err
 	}
 
@@ -49,6 +63,11 @@ func (f *Forwarder) Start() error {
 	f.running.Store(true)
 
 	go f.acceptLoop()
+	logger.Info("端口转发服务启动成功",
+		"forward_name", f.config.Name,
+		"forward_id", f.config.ID,
+		"listen_addr", addr,
+	)
 	return nil
 }
 
@@ -66,18 +85,42 @@ func (f *Forwarder) acceptLoop() {
 }
 
 func (f *Forwarder) handleConn(local net.Conn) {
+	clientIP := local.RemoteAddr().String()
+	logger.Info("端口转发新连接",
+		"forward_name", f.config.Name,
+		"forward_id", f.config.ID,
+		"client_ip", clientIP,
+		"remote_addr", fmt.Sprintf("%s:%d", f.config.RemoteHost, f.config.RemotePort),
+	)
+
+	startTime := time.Now()
 	remote, err := f.client.Dial("tcp", fmt.Sprintf("%s:%d", f.config.RemoteHost, f.config.RemotePort))
 	if err != nil {
+		logger.Error("端口转发远程连接失败",
+			"forward_name", f.config.Name,
+			"forward_id", f.config.ID,
+			"client_ip", clientIP,
+			"remote_addr", fmt.Sprintf("%s:%d", f.config.RemoteHost, f.config.RemotePort),
+			"error", err,
+		)
 		local.Close()
 		return
 	}
 
-	connID := fmt.Sprintf("%s-%d", local.RemoteAddr().String(), time.Now().UnixNano())
+	logger.Info("端口转发远程连接成功",
+		"forward_name", f.config.Name,
+		"forward_id", f.config.ID,
+		"client_ip", clientIP,
+		"remote_addr", fmt.Sprintf("%s:%d", f.config.RemoteHost, f.config.RemotePort),
+		"duration", time.Since(startTime).String(),
+	)
+
+	connID := fmt.Sprintf("%s-%d", clientIP, time.Now().UnixNano())
 	info := &connInfo{
 		local:    local,
 		remote:   remote,
 		startAt:  time.Now(),
-		clientIP: local.RemoteAddr().String(),
+		clientIP: clientIP,
 	}
 
 	f.mu.Lock()
@@ -89,18 +132,34 @@ func (f *Forwarder) handleConn(local net.Conn) {
 }
 
 func (f *Forwarder) copyToRemote(dst, src net.Conn) {
-	n, _ := io.Copy(dst, src)
+	n, err := io.Copy(dst, src)
 	atomic.AddInt64(&f.bytesIn, n)
 	dst.Close()
 	src.Close()
+	if err != nil {
+		logger.Warn("端口转发数据传输错误(本地->远程)",
+			"forward_name", f.config.Name,
+			"forward_id", f.config.ID,
+			"bytes", n,
+			"error", err,
+		)
+	}
 	f.removeConn(dst)
 }
 
 func (f *Forwarder) copyFromRemote(dst, src net.Conn) {
-	n, _ := io.Copy(dst, src)
+	n, err := io.Copy(dst, src)
 	atomic.AddInt64(&f.bytesOut, n)
 	dst.Close()
 	src.Close()
+	if err != nil {
+		logger.Warn("端口转发数据传输错误(远程->本地)",
+			"forward_name", f.config.Name,
+			"forward_id", f.config.ID,
+			"bytes", n,
+			"error", err,
+		)
+	}
 	f.removeConn(src)
 }
 
@@ -109,6 +168,13 @@ func (f *Forwarder) removeConn(conn net.Conn) {
 	defer f.mu.Unlock()
 	for id, info := range f.conns {
 		if info.local == conn || info.remote == conn {
+			duration := time.Since(info.startAt)
+			logger.Info("端口转发连接关闭",
+				"forward_name", f.config.Name,
+				"forward_id", f.config.ID,
+				"client_ip", info.clientIP,
+				"duration", duration.String(),
+			)
 			delete(f.conns, id)
 			break
 		}
@@ -116,6 +182,11 @@ func (f *Forwarder) removeConn(conn net.Conn) {
 }
 
 func (f *Forwarder) Stop() error {
+	logger.Info("停止端口转发服务",
+		"forward_name", f.config.Name,
+		"forward_id", f.config.ID,
+		"active_connections", len(f.conns),
+	)
 	f.running.Store(false)
 	if f.listener != nil {
 		f.listener.Close()

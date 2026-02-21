@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"pz-netlink/internal/forward"
+	"pz-netlink/internal/logger"
 	"pz-netlink/internal/proxy"
 	"pz-netlink/internal/ssh"
 	"pz-netlink/internal/storage"
@@ -21,18 +22,19 @@ import (
 )
 
 type App struct {
-	store      *storage.Store
-	config     *types.Config
-	mux        *http.ServeMux
-	handler    *web.Handler
-	forwarders map[string]*forward.Forwarder
-	httpProxy  *proxy.Proxy
-	sshClients map[string]*ssh.Client
-	logs       []*types.LogEntry
-	logMu      sync.RWMutex
-	mu         sync.RWMutex
-	ctx        context.Context
-	cancel     context.CancelFunc
+	store       *storage.Store
+	config      *types.Config
+	mux         *http.ServeMux
+	handler     *web.Handler
+	forwarders  map[string]*forward.Forwarder
+	httpProxy   *proxy.Proxy
+	sshClients  map[string]*ssh.Client
+	logs        []*types.LogEntry
+	logMu       sync.RWMutex
+	mu          sync.RWMutex
+	ctx         context.Context
+	cancel      context.CancelFunc
+	statusCheck *time.Ticker
 }
 
 func NewApp(configPath string) *App {
@@ -89,6 +91,8 @@ func (a *App) Start() error {
 		return err
 	}
 
+	a.startStatusCheck()
+
 	a.handler = web.NewHandler(a)
 	a.handler.RegisterRoutes(a.mux)
 
@@ -117,15 +121,29 @@ func (a *App) startPortForwards() error {
 		}
 		client, ok := a.sshClients[f.SSHServerID]
 		if !ok {
+			logger.Error("SSH服务器未找到",
+				"forward_name", f.Name,
+				"forward_id", f.ID,
+				"ssh_server_id", f.SSHServerID,
+			)
 			a.log("ERROR", fmt.Sprintf("SSH server not found for forward %s", f.Name), f.ID)
 			continue
 		}
 		fw := forward.NewForwarder(&f, client)
 		if err := fw.Start(); err != nil {
+			logger.Error("端口转发启动失败",
+				"forward_name", f.Name,
+				"forward_id", f.ID,
+				"error", err,
+			)
 			a.log("ERROR", fmt.Sprintf("Failed to start forward %s: %v", f.Name, err), f.ID)
 			continue
 		}
 		a.forwarders[f.ID] = fw
+		logger.Info("端口转发启动成功",
+			"forward_name", f.Name,
+			"forward_id", f.ID,
+		)
 		a.log("INFO", fmt.Sprintf("Started port forward: %s", f.Name), f.ID)
 	}
 	return nil
@@ -141,6 +159,7 @@ func (a *App) startHTTPProxy() error {
 	}
 	if client == nil {
 		if len(a.sshClients) == 0 {
+			logger.Error("无可用SSH服务器用于HTTP代理")
 			a.log("ERROR", "No SSH server available for HTTP proxy", "")
 			return fmt.Errorf("no SSH server available")
 		}
@@ -152,6 +171,7 @@ func (a *App) startHTTPProxy() error {
 
 	p := proxy.NewProxy(&a.config.HTTPProxy, client)
 	if err := p.Start(); err != nil {
+		logger.Error("HTTP代理启动失败", "error", err)
 		a.log("ERROR", fmt.Sprintf("Failed to start HTTP proxy: %v", err), "")
 		return err
 	}
@@ -160,8 +180,74 @@ func (a *App) startHTTPProxy() error {
 	return nil
 }
 
+func (a *App) startStatusCheck() {
+	a.statusCheck = time.NewTicker(60 * time.Second)
+	go func() {
+		for {
+			select {
+			case <-a.statusCheck.C:
+				a.checkStatus()
+			case <-a.ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+func (a *App) checkStatus() {
+	logger.Info("===== 状态检查 =====")
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	for id, client := range a.sshClients {
+		connected := client.IsConnected()
+		logger.Info("SSH服务器状态",
+			"server_id", id,
+			"connected", connected,
+		)
+	}
+
+	for id, fw := range a.forwarders {
+		status := fw.GetStatus()
+		connections := fw.GetActiveConnections()
+		logger.Info("端口转发状态",
+			"forward_id", id,
+			"name", status.Name,
+			"status", status.Status,
+			"active_connections", len(connections),
+			"bytes_in", status.BytesIn,
+			"bytes_out", status.BytesOut,
+		)
+		for _, conn := range connections {
+			logger.Debug("活动连接",
+				"forward_id", id,
+				"client_ip", conn["client_ip"],
+				"duration", conn["duration"],
+			)
+		}
+	}
+
+	if a.httpProxy != nil {
+		status := a.httpProxy.GetStatus()
+		logger.Info("HTTP代理状态",
+			"status", status.Status,
+			"bytes_in", status.BytesIn,
+			"bytes_out", status.BytesOut,
+		)
+	}
+
+	logger.Info("===== 状态检查结束 =====")
+}
+
 func (a *App) Stop() {
+	logger.Info("停止SSH代理服务")
 	a.log("INFO", "Stopping SSH Proxy Service", "")
+
+	if a.statusCheck != nil {
+		a.statusCheck.Stop()
+	}
+
 	a.cancel()
 
 	for _, fw := range a.forwarders {
@@ -180,6 +266,7 @@ func (a *App) Stop() {
 	a.sshClients = make(map[string]*ssh.Client)
 
 	a.log("INFO", "Service stopped", "")
+	logger.Info("服务已停止")
 }
 
 func (a *App) Restart() {
@@ -395,12 +482,19 @@ func (a *App) GetServerConfig() *types.ServerConfig {
 func main() {
 	configPath := flag.String("config", ".conf/config.toml", "path to config file")
 	port := flag.String("port", "8080", "web server port")
+	logLevel := flag.String("log-level", "INFO", "log level: DEBUG, INFO, WARN, ERROR")
 	flag.Parse()
+
+	logger.Init(*logLevel)
+
+	logger.Info("===== 服务启动 =====")
+	logger.Info("加载配置文件", "config_path", *configPath)
 
 	app := NewApp(*configPath)
 
 	if err := app.LoadConfig(); err != nil {
 		if os.IsNotExist(err) {
+			logger.Warn("配置文件不存在，创建默认配置", "config_path", *configPath)
 			cfg := &types.Config{
 				Server: types.ServerConfig{
 					Port: *port,
@@ -412,11 +506,13 @@ func main() {
 			app.config = cfg
 			app.store.Save(cfg)
 		} else {
+			logger.Error("加载配置文件失败", "error", err)
 			log.Fatal(err)
 		}
 	}
 
 	if err := app.Start(); err != nil {
+		logger.Error("服务启动失败", "error", err)
 		log.Fatal(err)
 	}
 
@@ -431,8 +527,10 @@ func main() {
 	}
 
 	go func() {
+		logger.Info("Web服务器启动", "addr", addr)
 		log.Printf("Server starting on %s", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("Web服务器错误", "error", err)
 			log.Fatal(err)
 		}
 	}()
@@ -441,9 +539,11 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
+	logger.Info("收到停止信号")
 	log.Println("Shutting down...")
 	app.Stop()
 	server.Shutdown(context.Background())
+	logger.Info("===== 服务停止 =====")
 }
 
 var _ web.Manager = (*App)(nil)
