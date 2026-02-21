@@ -14,14 +14,15 @@ import (
 )
 
 type Forwarder struct {
-	config   *types.PortForward
-	client   *ssh.Client
-	listener net.Listener
-	conns    map[string]*connInfo
-	mu       sync.RWMutex
-	bytesIn  int64
-	bytesOut int64
-	running  atomic.Bool
+	config    *types.PortForward
+	client    *ssh.Client
+	listener  net.Listener
+	conns     map[string]*connInfo
+	mu        sync.RWMutex
+	bytesIn   int64
+	bytesOut  int64
+	startedAt time.Time
+	running   atomic.Bool
 }
 
 type connInfo struct {
@@ -60,6 +61,7 @@ func (f *Forwarder) Start() error {
 	}
 
 	f.listener = listener
+	f.startedAt = time.Now()
 	f.running.Store(true)
 
 	go f.acceptLoop()
@@ -216,7 +218,7 @@ func (f *Forwarder) GetStatus() *types.ConnectionStatus {
 		Status:     status,
 		BytesIn:    atomic.LoadInt64(&f.bytesIn),
 		BytesOut:   atomic.LoadInt64(&f.bytesOut),
-		StartedAt:  time.Now(),
+		StartedAt:  f.startedAt,
 	}
 }
 
