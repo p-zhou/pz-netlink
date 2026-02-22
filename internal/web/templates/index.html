@@ -4,46 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SSH 代理服务</title>
+    <link rel="stylesheet" href="/static/css/common.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
-        .header { background: #2563eb; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 1.5rem; }
-        .nav { display: flex; gap: 1rem; }
-        .nav a { color: white; text-decoration: none; padding: 0.5rem 1rem; border-radius: 4px; transition: background 0.2s; }
-        .nav a:hover { background: rgba(255,255,255,0.1); }
-        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
-        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .card h2 { margin-bottom: 1rem; color: #333; font-size: 1.25rem; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
-        .stat { background: #f8fafc; padding: 1rem; border-radius: 6px; text-align: center; }
-        .stat-value { font-size: 1.5rem; font-weight: bold; color: #2563eb; }
-        .stat-label { color: #64748b; font-size: 0.875rem; margin-top: 0.25rem; }
-        .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; transition: opacity 0.2s; }
-        .btn:hover { opacity: 0.9; }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-danger { background: #dc2626; color: white; }
-        .btn-success { background: #16a34a; color: white; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        th { background: #f8fafc; font-weight: 600; color: #475569; }
-        .status-connected { color: #16a34a; }
-        .status-disconnected { color: #dc2626; }
-        .actions { display: flex; gap: 0.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; color: #475569; font-size: 0.875rem; }
-        .form-group input, .form-group select { width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 1rem; }
-        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
-        .modal.active { display: flex; }
-        .modal-content { background: white; padding: 1.5rem; border-radius: 8px; width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-        .modal-header h3 { font-size: 1.25rem; }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
-        dialog { border: none; border-radius: 8px; padding: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-        dialog::backdrop { background: rgba(0,0,0,0.5); }
-        .dialog-content { padding: 1.5rem; min-width: 400px; max-width: 600px; }
-        .dialog-body { white-space: pre-wrap; margin-bottom: 1rem; line-height: 1.5; }
-        .dialog-footer { display: flex; justify-content: flex-end; gap: 0.5rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
@@ -86,53 +49,8 @@
         </div>
     </main>
 
-    <dialog id="confirmDialog">
-        <div class="dialog-content">
-            <div class="dialog-body" id="confirmBody"></div>
-            <div class="dialog-footer">
-                <button class="btn" style="background:#e2e8f0" onclick="closeConfirm(false)">取消</button>
-                <button class="btn btn-primary" onclick="closeConfirm(true)">确定</button>
-            </div>
-        </div>
-    </dialog>
-
-    <dialog id="alertDialog">
-        <div class="dialog-content">
-            <div class="dialog-body" id="alertBody"></div>
-            <div class="dialog-footer">
-                <button class="btn btn-primary" onclick="closeAlert()">确定</button>
-            </div>
-        </div>
-    </dialog>
-
+    <script src="/static/js/common.js"></script>
     <script>
-        let confirmResolve = null;
-
-        function showConfirm(message) {
-            return new Promise((resolve) => {
-                document.getElementById('confirmBody').textContent = message;
-                document.getElementById('confirmDialog').showModal();
-                confirmResolve = resolve;
-            });
-        }
-
-        function closeConfirm(result) {
-            document.getElementById('confirmDialog').close();
-            if (confirmResolve) {
-                confirmResolve(result);
-                confirmResolve = null;
-            }
-        }
-
-        function showAlert(message) {
-            document.getElementById('alertBody').textContent = message;
-            document.getElementById('alertDialog').showModal();
-        }
-
-        function closeAlert() {
-            document.getElementById('alertDialog').close();
-        }
-
         async function loadStats() {
             try {
                 const [conns, forwards, ssh] = await Promise.all([

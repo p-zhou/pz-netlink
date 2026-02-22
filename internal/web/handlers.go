@@ -15,6 +15,9 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
+//go:embed static/*
+var staticFS embed.FS
+
 type Handler struct {
 	templates *template.Template
 	manager   Manager
@@ -33,6 +36,8 @@ func NewHandler(manager Manager) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+
 	mux.HandleFunc("/", h.index)
 	mux.HandleFunc("/connections", h.connections)
 	mux.HandleFunc("/logs", h.logs)
