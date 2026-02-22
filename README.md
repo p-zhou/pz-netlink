@@ -142,18 +142,18 @@ ssh_server_id = "ssh-server-1"
 ### 构建步骤
 
 1. 克隆仓库并进入项目目录
-```bash
-git clone https://github.com/p-zhou/pz-netlink.git
-cd pz-netlink
-```
+   ```bash
+   git clone https://github.com/p-zhou/pz-netlink.git
+   cd pz-netlink
+   ```
 
 2. 安装依赖
-```bash
-go mod download
+   ```bash
+   go mod download
 
-# 或者使用代理
-GOPROXY=https://goproxy.cn go mod download
-```
+   # 或者使用代理
+   GOPROXY=https://goproxy.cn go mod download
+   ```
 
 3. 编译项目
    ```bash
@@ -165,30 +165,32 @@ GOPROXY=https://goproxy.cn go mod download
    ./pz-netlink
    ```
 
-   **使用环境变量运行**
-   ```bash
-   # 设置 SSH 连接信息（推荐）
-   export SSH_HOST="your-ssh-server.com"
-   export SSH_PORT="22"
-   export SSH_USERNAME="your-username"
-   export SSH_PASSWORD="your-password"
-   
-   # 或直接在命令行中设置
-   SSH_HOST="your-ssh-server.com" SSH_USERNAME="your-username" \
-   SSH_PASSWORD="your-password" ./pz-netlink
-   ```
-   
-   **Docker 部署示例**
-   ```dockerfile
-   FROM golang:1.21-alpine
-   WORKDIR /app
-   COPY pz-netlink /app/
-   ENV SSH_HOST="your-ssh-server.com"
-   ENV SSH_PORT="22"
-   ENV SSH_USERNAME="your-username"
-   ENV SSH_PASSWORD="your-password"
-   CMD ["./pz-netlink"]
-   ```
+### 命令行参数
+
+程序支持以下命令行参数：
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `-config` | 配置文件路径 | `.conf/config.toml` |
+| `-port` | Web 服务监听端口 | `8080` |
+| `-log-level` | 日志级别 (DEBUG, INFO, WARN, ERROR) | `INFO` |
+
+**使用示例：**
+```bash
+# 使用自定义配置文件
+./pz-netlink -config /path/to/custom.toml
+
+# 指定 Web 服务端口
+./pz-netlink -port 9000
+
+# 设置日志级别为 DEBUG
+./pz-netlink -log-level DEBUG
+
+# 组合使用
+./pz-netlink -config my.toml -port 9000 -log-level DEBUG
+```
+
+**注意：** 命令行参数 `-port` 会覆盖配置文件中的 `server.port` 设置，除非使用默认值 `8080`。
 
 ### 配置
 
