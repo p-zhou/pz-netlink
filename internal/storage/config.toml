@@ -20,7 +20,7 @@
   # 用户名
   username = "TODO-指定SSH访问账号"
   # 密码(可以使用环境变量, 比如 ${SSH_PASSWORD})
-  password = "${SSH_PASSWORD:TODO-指定SSH访问密码}"
+  password = "${SSH_PASSWORD:-TODO-指定SSH访问密码}"
   # 认证方式: password 或 key
   auth_type = "password"
   # 私钥文件路径 (auth_type 为 key 时使用)
