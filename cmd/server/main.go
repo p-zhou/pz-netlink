@@ -315,8 +315,8 @@ func (a *App) GetSSHServers() []*types.SSHServer {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	servers := make([]*types.SSHServer, len(a.config.SSHServers))
-	for i, s := range a.config.SSHServers {
-		servers[i] = &s
+	for i := range a.config.SSHServers {
+		servers[i] = &a.config.SSHServers[i]
 	}
 	return servers
 }
@@ -375,8 +375,8 @@ func (a *App) GetPortForwards() []*types.PortForward {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	forwards := make([]*types.PortForward, len(a.config.PortForwards))
-	for i, f := range a.config.PortForwards {
-		forwards[i] = &f
+	for i := range a.config.PortForwards {
+		forwards[i] = &a.config.PortForwards[i]
 	}
 	return forwards
 }
