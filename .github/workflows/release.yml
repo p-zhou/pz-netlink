@@ -68,10 +68,16 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R artifacts
 
+      - name: Flatten artifacts
+        run: |
+          find artifacts -type f -exec mv {} artifacts/ \;
+          find artifacts -type d -empty -delete
+          ls -la artifacts
+
       - name: Create checksums
         run: |
           cd artifacts
-          find . -type f -exec sha256sum {} \; | sort > SHA256SUMS.txt
+          find . -type f -name "pz-netlink-*" -exec sha256sum {} \; | sort > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Create Release
