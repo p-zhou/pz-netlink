@@ -162,7 +162,7 @@ func (a *App) Start() error {
 	a.ctx = ctx
 	a.cancel = cancel
 
-	a.log("INFO", "Starting NetLink", "")
+	a.log("INFO", "启动 NetLink 服务", "")
 
 	if err := a.startSSHClients(); err != nil {
 		return err
@@ -192,7 +192,7 @@ func (a *App) Start() error {
 		a.httpServer.Handler = a.httpHandler
 	}
 
-	a.log("INFO", "Service started successfully", "")
+	a.log("INFO", "服务启动成功", "")
 	return nil
 }
 
@@ -200,12 +200,12 @@ func (a *App) startSSHClients() error {
 	for _, s := range a.config.SSHServers {
 		client := ssh.NewClient(&s)
 		if err := client.Connect(); err != nil {
-			a.log("ERROR", fmt.Sprintf("Failed to connect to SSH server %s: %v", s.Name, err), s.ID)
+			a.log("ERROR", fmt.Sprintf("连接SSH服务器失败: %s (%v)", s.Name, err), s.ID)
 			continue
 		}
 		client.StartKeepAlive()
 		a.sshClients[s.ID] = client
-		a.log("INFO", fmt.Sprintf("Connected to SSH server: %s", s.Name), s.ID)
+		a.log("INFO", fmt.Sprintf("已连接到SSH服务器: %s", s.Name), s.ID)
 	}
 	return nil
 }
@@ -222,7 +222,7 @@ func (a *App) startPortForwards() error {
 				"forward_id", f.ID,
 				"ssh_server_id", f.SSHServerID,
 			)
-			a.log("ERROR", fmt.Sprintf("SSH server not found for forward %s", f.Name), f.ID)
+			a.log("ERROR", fmt.Sprintf("未找到用于端口转发 %s 的SSH服务器", f.Name), f.ID)
 			continue
 		}
 		fw := forward.NewForwarder(&f, client)
@@ -232,7 +232,7 @@ func (a *App) startPortForwards() error {
 				"forward_id", f.ID,
 				"error", err,
 			)
-			a.log("ERROR", fmt.Sprintf("Failed to start forward %s: %v", f.Name, err), f.ID)
+			a.log("ERROR", fmt.Sprintf("启动端口转发失败: %s (%v)", f.Name, err), f.ID)
 			continue
 		}
 		a.forwarders[f.ID] = fw
@@ -240,7 +240,7 @@ func (a *App) startPortForwards() error {
 			"forward_name", f.Name,
 			"forward_id", f.ID,
 		)
-		a.log("INFO", fmt.Sprintf("Started port forward: %s", f.Name), f.ID)
+		a.log("INFO", fmt.Sprintf("端口转发已启动: %s", f.Name), f.ID)
 	}
 	return nil
 }
@@ -256,7 +256,7 @@ func (a *App) startHTTPProxy() error {
 	if client == nil {
 		if len(a.sshClients) == 0 {
 			logger.Warn("无可用SSH服务器用于HTTP代理，跳过启动")
-			a.log("WARN", "No SSH server available for HTTP proxy, skipping", "")
+			a.log("WARN", "无可用SSH服务器用于HTTP代理，跳过启动", "")
 			return nil
 		}
 		for _, c := range a.sshClients {
@@ -268,11 +268,11 @@ func (a *App) startHTTPProxy() error {
 	p := proxy.NewProxy(&a.config.HTTPProxy, client)
 	if err := p.Start(); err != nil {
 		logger.Error("HTTP代理启动失败", "error", err)
-		a.log("ERROR", fmt.Sprintf("Failed to start HTTP proxy: %v", err), "")
+		a.log("ERROR", fmt.Sprintf("启动HTTP代理失败: %v", err), "")
 		return nil
 	}
 	a.httpProxy = p
-	a.log("INFO", "HTTP proxy started", "")
+	a.log("INFO", "HTTP代理已启动", "")
 	return nil
 }
 
@@ -338,7 +338,7 @@ func (a *App) checkStatus() {
 
 func (a *App) Stop() {
 	logger.Info("停止NetLink 服务")
-	a.log("INFO", "Stopping NetLink", "")
+	a.log("INFO", "停止 NetLink 服务", "")
 
 	if a.statusCheck != nil {
 		a.statusCheck.Stop()
@@ -361,7 +361,7 @@ func (a *App) Stop() {
 	}
 	a.sshClients = make(map[string]*ssh.Client)
 
-	a.log("INFO", "Service stopped", "")
+	a.log("INFO", "服务已停止", "")
 	logger.Info("服务已停止")
 }
 
@@ -416,12 +416,12 @@ func (a *App) AddSSHServer(s *types.SSHServer) {
 	go func() {
 		client := ssh.NewClient(s)
 		if err := client.Connect(); err != nil {
-			a.log("ERROR", fmt.Sprintf("Failed to connect: %v", err), s.ID)
+			a.log("ERROR", fmt.Sprintf("连接失败: %v", err), s.ID)
 			return
 		}
 		client.StartKeepAlive()
 		a.sshClients[s.ID] = client
-		a.log("INFO", fmt.Sprintf("SSH server added: %s", s.Name), s.ID)
+		a.log("INFO", fmt.Sprintf("SSH服务器已添加: %s", s.Name), s.ID)
 	}()
 }
 
@@ -494,18 +494,18 @@ func (a *App) AddPortForward(p *types.PortForward) {
 func (a *App) startOnePortForward(p *types.PortForward) {
 	client, ok := a.sshClients[p.SSHServerID]
 	if !ok {
-		a.log("ERROR", "SSH server not found", p.ID)
+		a.log("ERROR", "未找到SSH服务器", p.ID)
 		return
 	}
 	fw := forward.NewForwarder(p, client)
 	if err := fw.Start(); err != nil {
-		a.log("ERROR", fmt.Sprintf("Failed to start: %v", err), p.ID)
+		a.log("ERROR", fmt.Sprintf("启动失败: %v", err), p.ID)
 		return
 	}
 	a.mu.Lock()
 	a.forwarders[p.ID] = fw
 	a.mu.Unlock()
-	a.log("INFO", fmt.Sprintf("Port forward added: %s", p.Name), p.ID)
+	a.log("INFO", fmt.Sprintf("端口转发已添加: %s", p.Name), p.ID)
 }
 
 func (a *App) UpdatePortForward(p *types.PortForward) {
