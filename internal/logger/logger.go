@@ -104,3 +104,7 @@ func Error(msg string, args ...any) {
 func With(args ...any) *slog.Logger {
 	return logger.With(args...)
 }
+
+func IsDebug() bool {
+	return logger != nil && logger.Handler().Enabled(context.Background(), slog.LevelDebug)
+}

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"log"
@@ -72,15 +74,15 @@ func (a *App) SaveConfig() error {
 func (a *App) resolveEnvVars() {
 	envVarPattern := regexp.MustCompile(`^\$\{([^}:]+)(?::-([^}]*))?\}$`)
 
-	a.config.Server.Password = a.expandEnvVar(a.config.Server.Password, envVarPattern, "server.password")
+	a.config.Server.Password = a.expandEnvVar(a.config.Server.Password, envVarPattern, "server.password", true)
 
 	for i := range a.config.SSHServers {
 		fieldName := fmt.Sprintf("ssh_servers[%s].password", a.config.SSHServers[i].ID)
-		a.config.SSHServers[i].Password = a.expandEnvVar(a.config.SSHServers[i].Password, envVarPattern, fieldName)
+		a.config.SSHServers[i].Password = a.expandEnvVar(a.config.SSHServers[i].Password, envVarPattern, fieldName, false)
 	}
 }
 
-func (a *App) expandEnvVar(value string, pattern *regexp.Regexp, fieldName string) string {
+func (a *App) expandEnvVar(value string, pattern *regexp.Regexp, fieldName string, isServerPassword bool) string {
 	if !pattern.MatchString(value) {
 		return value
 	}
@@ -90,10 +92,15 @@ func (a *App) expandEnvVar(value string, pattern *regexp.Regexp, fieldName strin
 	}
 	varName := match[1]
 	hasDefault := strings.Contains(value, ":-")
+	isDebug := logger.IsDebug()
 
 	envValue := os.Getenv(varName)
 	if envValue != "" {
-		logger.Debug(fmt.Sprintf("变量 '%s' 使用环境变量值: field=%s value=%s", varName, fieldName, envValue))
+		if isDebug {
+			logger.Debug(fmt.Sprintf("变量 '%s' 使用环境变量值: field=%s value=%s", varName, fieldName, envValue))
+		} else {
+			logger.Warn(fmt.Sprintf("变量 '%s' 使用环境变量值: field=%s", varName, fieldName))
+		}
 		return envValue
 	}
 
@@ -102,13 +109,36 @@ func (a *App) expandEnvVar(value string, pattern *regexp.Regexp, fieldName strin
 		if len(match) >= 3 {
 			defaultValue = match[2]
 		}
-		logger.Debug(fmt.Sprintf("变量 '%s' 使用默认值 field=%s default=%s", varName, fieldName, defaultValue))
+		if isDebug {
+			logger.Debug(fmt.Sprintf("变量 '%s' 使用默认值 field=%s default=%s", varName, fieldName, defaultValue))
+		} else {
+			logger.Warn(fmt.Sprintf("变量 '%s' 使用默认值 field=%s", varName, fieldName))
+		}
 		return defaultValue
 	}
 
-	logger.Error(fmt.Sprintf("错误: 环境变量 '%s' 未设置且无默认值 (field=%s)", varName, fieldName))
-	log.Fatalf("错误: 环境变量 '%s' 未设置且无默认值 (field=%s)", varName, fieldName)
-	return value
+	if isServerPassword {
+		logger.Error(fmt.Sprintf("错误: 环境变量 '%s' 未设置且无默认值 (field=%s)", varName, fieldName))
+		log.Fatalf("错误: 环境变量 '%s' 未设置且无默认值 (field=%s)", varName, fieldName)
+		return value
+	}
+
+	randomUUID := generateRandomUUID()
+	if isDebug {
+		logger.Debug(fmt.Sprintf("变量 '%s' 未设置，使用随机UUID: field=%s value=%s", varName, fieldName, randomUUID))
+	} else {
+		logger.Warn(fmt.Sprintf("变量 '%s' 未设置，使用随机UUID: field=%s", varName, fieldName))
+	}
+	return randomUUID
+}
+
+func generateRandomUUID() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return fmt.Sprintf("random-%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
 }
 
 func (a *App) log(level, msg, connID string) {
