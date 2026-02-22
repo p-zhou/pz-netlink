@@ -70,7 +70,7 @@ func (a *App) SaveConfig() error {
 }
 
 func (a *App) resolveEnvVars() {
-	envVarPattern := regexp.MustCompile(`^\$\{([^}:]+)(?::-([^}]+))?\}$`)
+	envVarPattern := regexp.MustCompile(`^\$\{([^}:]+)(?::-([^}]*))?\}$`)
 
 	a.config.Server.Password = a.expandEnvVar(a.config.Server.Password, envVarPattern, "server.password")
 
@@ -94,7 +94,7 @@ func (a *App) expandEnvVar(value string, pattern *regexp.Regexp, fieldName strin
 		logger.Debug("使用环境变量值", "field", fieldName, "env_var", varName, "value", "***")
 		return envValue
 	}
-	if len(match) >= 3 && match[2] != "" {
+	if len(match) >= 3 {
 		logger.Debug("使用默认值", "field", fieldName, "env_var", varName, "default", "***")
 		return match[2]
 	}
