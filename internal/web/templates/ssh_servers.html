@@ -201,14 +201,30 @@
             closeModal();
             loadServers();
             if(editingId) {
-                alert('SSH服务器配置已修改，需要重启服务器以使修改生效');
+                if(confirm('SSH服务器配置已修改，需要重启服务器以使修改生效。是否现在重启？')) {
+                    const res = await fetch('/api/restart', { method: 'POST' }).then(r => r.json());
+                    const sshTotal = res.ssh_servers.total;
+                    const sshEnabled = res.ssh_servers.enabled;
+                    const fwTotal = res.port_forwards.total;
+                    const fwEnabled = res.port_forwards.enabled;
+                    const proxyEnabled = res.http_proxy.enabled ? '已启用' : '未启用';
+                    alert(`重启完成\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：${proxyEnabled}`);
+                }
             }
         };
         async function deleteServer(id) {
             if(confirm('确定要删除这个SSH服务器吗?')) {
                 await fetch('/api/ssh-servers?id=' + id, { method: 'DELETE' });
                 loadServers();
-                alert('SSH服务器已删除，需要重启服务器以使修改生效');
+                if(confirm('SSH服务器已删除，需要重启服务器以使修改生效。是否现在重启？')) {
+                    const res = await fetch('/api/restart', { method: 'POST' }).then(r => r.json());
+                    const sshTotal = res.ssh_servers.total;
+                    const sshEnabled = res.ssh_servers.enabled;
+                    const fwTotal = res.port_forwards.total;
+                    const fwEnabled = res.port_forwards.enabled;
+                    const proxyEnabled = res.http_proxy.enabled ? '已启用' : '未启用';
+                    alert(`重启完成\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：${proxyEnabled}`);
+                }
             }
         }
         loadServers();
