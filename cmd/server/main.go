@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"sync"
 	"syscall"
@@ -60,11 +61,38 @@ func (a *App) LoadConfig() error {
 		return err
 	}
 	a.config = cfg
+	a.resolveEnvVars()
 	return nil
 }
 
 func (a *App) SaveConfig() error {
 	return a.store.Save(a.config)
+}
+
+func (a *App) resolveEnvVars() {
+	envVarPattern := regexp.MustCompile(`^\$\{([^}]+)\}$`)
+
+	if envVarPattern.MatchString(a.config.Server.Password) {
+		match := envVarPattern.FindStringSubmatch(a.config.Server.Password)
+		if len(match) == 2 {
+			envValue := os.Getenv(match[1])
+			if envValue != "" {
+				a.config.Server.Password = envValue
+			}
+		}
+	}
+
+	for i := range a.config.SSHServers {
+		if envVarPattern.MatchString(a.config.SSHServers[i].Password) {
+			match := envVarPattern.FindStringSubmatch(a.config.SSHServers[i].Password)
+			if len(match) == 2 {
+				envValue := os.Getenv(match[1])
+				if envValue != "" {
+					a.config.SSHServers[i].Password = envValue
+				}
+			}
+		}
+	}
 }
 
 func (a *App) log(level, msg, connID string) {
