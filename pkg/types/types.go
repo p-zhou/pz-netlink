@@ -10,7 +10,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port string `yaml:"port" json:"port" toml:"port"`
+	Port     string `yaml:"port" json:"port" toml:"port"`
+	Username string `yaml:"username,omitempty" json:"username,omitempty" toml:"username,omitempty"`
+	Password string `yaml:"password,omitempty" json:"password,omitempty" toml:"password,omitempty"`
 }
 
 type SSHServer struct {

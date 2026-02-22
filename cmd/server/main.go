@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -26,6 +28,7 @@ type App struct {
 	config      *types.Config
 	mux         *http.ServeMux
 	handler     *web.Handler
+	httpHandler http.Handler
 	httpServer  *http.Server
 	forwarders  map[string]*forward.Forwarder
 	httpProxy   *proxy.Proxy
@@ -104,9 +107,15 @@ func (a *App) Start() error {
 	a.handler = web.NewHandler(a)
 	a.handler.RegisterRoutes(a.mux)
 
+	// 如果配置了用户名和密码，启用 Basic Auth
+	a.httpHandler = http.Handler(a.mux)
+	if a.config.Server.Username != "" && a.config.Server.Password != "" {
+		a.httpHandler = a.basicAuthMiddleware(a.mux)
+	}
+
 	// 更新 httpServer 的 handler
 	if a.httpServer != nil {
-		a.httpServer.Handler = a.mux
+		a.httpServer.Handler = a.httpHandler
 	}
 
 	a.log("INFO", "Service started successfully", "")
@@ -492,6 +501,28 @@ func (a *App) GetServerConfig() *types.ServerConfig {
 	return &a.config.Server
 }
 
+func (a *App) basicAuthMiddleware(next http.Handler) http.Handler {
+	expectedAuth := base64.StdEncoding.EncodeToString([]byte(a.config.Server.Username + ":" + a.config.Server.Password))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !strings.HasPrefix(auth, "Basic ") {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		credentials := strings.TrimPrefix(auth, "Basic ")
+		if credentials != expectedAuth {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	configPath := flag.String("config", ".conf/config.toml", "path to config file")
 	port := flag.String("port", "8080", "web server port")
@@ -545,7 +576,7 @@ func main() {
 
 	app.httpServer = &http.Server{
 		Addr:    addr,
-		Handler: app.mux,
+		Handler: app.httpHandler,
 	}
 
 	go func() {
