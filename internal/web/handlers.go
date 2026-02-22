@@ -6,6 +6,8 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"strconv"
+	"time"
 
 	"pz-netlink/pkg/types"
 )
@@ -44,6 +46,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/port-forwards", h.apiPortForwards)
 	mux.HandleFunc("/api/http-proxy", h.apiHTTPProxy)
 	mux.HandleFunc("/api/restart", h.apiRestart)
+	mux.HandleFunc("/test", h.test)
 }
 
 func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +71,19 @@ func (h *Handler) portForwards(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) httpProxy(w http.ResponseWriter, r *http.Request) {
 	h.templates.ExecuteTemplate(w, "http_proxy.html", nil)
+}
+
+func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
+	sleepMs := r.URL.Query().Get("sleep")
+	if sleepMs != "" {
+		ms, err := strconv.Atoi(sleepMs)
+		if err == nil && ms > 0 {
+			time.Sleep(time.Duration(ms) * time.Millisecond)
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write([]byte(time.Now().Format(time.RFC3339Nano)))
 }
 
 func (h *Handler) apiConnections(w http.ResponseWriter, r *http.Request) {
