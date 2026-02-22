@@ -185,11 +185,15 @@
             }
             closeModal();
             loadServers();
+            if(editingId) {
+                alert('SSH服务器配置已修改，需要重启服务器以使修改生效');
+            }
         };
         async function deleteServer(id) {
             if(confirm('确定要删除这个SSH服务器吗?')) {
                 await fetch('/api/ssh-servers?id=' + id, { method: 'DELETE' });
                 loadServers();
+                alert('SSH服务器已删除，需要重启服务器以使修改生效');
             }
         }
         loadServers();

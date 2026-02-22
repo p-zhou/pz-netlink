@@ -161,8 +161,35 @@ func (h *Handler) apiHTTPProxy(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) apiRestart(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
-		go h.manager.Restart()
-		json.NewEncoder(w).Encode(map[string]string{"status": "restarting"})
+		h.manager.Restart()
+
+		servers := h.manager.GetSSHServers()
+		forwards := h.manager.GetPortForwards()
+		proxyCfg := h.manager.GetHTTPProxyConfig()
+
+		enabledForwards := 0
+		for _, f := range forwards {
+			if f.Enabled {
+				enabledForwards++
+			}
+		}
+
+		result := map[string]interface{}{
+			"status": "success",
+			"ssh_servers": map[string]interface{}{
+				"total":   len(servers),
+				"enabled": len(servers),
+			},
+			"port_forwards": map[string]interface{}{
+				"total":   len(forwards),
+				"enabled": enabledForwards,
+			},
+			"http_proxy": map[string]interface{}{
+				"enabled": proxyCfg.Enabled,
+			},
+		}
+
+		json.NewEncoder(w).Encode(result)
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

@@ -88,7 +88,7 @@
                 ssh_server_id: document.getElementById('proxySSHServer').value
             };
             await fetch('/api/http-proxy', { method: 'PUT', body: JSON.stringify(data) });
-            alert('配置已保存，服务将自动重启');
+            alert('配置已保存');
         };
         loadData();
     </script>
