@@ -225,9 +225,9 @@ func (a *App) startHTTPProxy() error {
 	}
 	if client == nil {
 		if len(a.sshClients) == 0 {
-			logger.Error("无可用SSH服务器用于HTTP代理")
-			a.log("ERROR", "No SSH server available for HTTP proxy", "")
-			return fmt.Errorf("no SSH server available")
+			logger.Warn("无可用SSH服务器用于HTTP代理，跳过启动")
+			a.log("WARN", "No SSH server available for HTTP proxy, skipping", "")
+			return nil
 		}
 		for _, c := range a.sshClients {
 			client = c
@@ -239,7 +239,7 @@ func (a *App) startHTTPProxy() error {
 	if err := p.Start(); err != nil {
 		logger.Error("HTTP代理启动失败", "error", err)
 		a.log("ERROR", fmt.Sprintf("Failed to start HTTP proxy: %v", err), "")
-		return err
+		return nil
 	}
 	a.httpProxy = p
 	a.log("INFO", "HTTP proxy started", "")
