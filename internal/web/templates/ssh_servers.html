@@ -26,6 +26,7 @@
         .form-group { margin-bottom: 1rem; }
         .form-group label { display: block; margin-bottom: 0.5rem; color: #475569; font-size: 0.875rem; }
         .form-group input, .form-group select { width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 1rem; }
+        .hidden { display: none; }
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
         .modal.active { display: flex; }
         .modal-content { background: white; padding: 1.5rem; border-radius: 8px; width: 100%; max-width: 500px; }
@@ -95,16 +96,16 @@
                 </div>
                 <div class="form-group">
                     <label>认证方式</label>
-                    <select id="serverAuthType">
+                    <select id="serverAuthType" onchange="updateAuthFields()">
                         <option value="password">密码</option>
                         <option value="key">密钥</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="passwordGroup">
                     <label>密码</label>
                     <input type="password" id="serverPassword">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="privateKeyGroup">
                     <label>私钥路径</label>
                     <input type="text" id="serverPrivateKey" placeholder="/path/to/private_key">
                 </div>
@@ -148,6 +149,7 @@
             document.getElementById('modalTitle').textContent = '添加SSH服务器';
             document.getElementById('serverForm').reset();
             document.getElementById('serverModal').classList.add('active');
+            updateAuthFields();
         }
         function closeModal() {
             document.getElementById('serverModal').classList.remove('active');
@@ -164,6 +166,19 @@
             document.getElementById('serverPrivateKey').value = privateKey;
             document.getElementById('serverKeepAlive').value = keepAlive;
             document.getElementById('serverModal').classList.add('active');
+            updateAuthFields();
+        }
+        function updateAuthFields() {
+            const authType = document.getElementById('serverAuthType').value;
+            const passwordGroup = document.getElementById('passwordGroup');
+            const privateKeyGroup = document.getElementById('privateKeyGroup');
+            if (authType === 'password') {
+                passwordGroup.classList.remove('hidden');
+                privateKeyGroup.classList.add('hidden');
+            } else {
+                passwordGroup.classList.add('hidden');
+                privateKeyGroup.classList.remove('hidden');
+            }
         }
         document.getElementById('serverForm').onsubmit = async (e) => {
             e.preventDefault();
