@@ -162,7 +162,7 @@ func (a *App) Start() error {
 	a.ctx = ctx
 	a.cancel = cancel
 
-	a.log("INFO", "Starting SSH Proxy Service", "")
+	a.log("INFO", "Starting netlink", "")
 
 	if err := a.startSSHClients(); err != nil {
 		return err
@@ -337,8 +337,8 @@ func (a *App) checkStatus() {
 }
 
 func (a *App) Stop() {
-	logger.Info("停止SSH代理服务")
-	a.log("INFO", "Stopping SSH Proxy Service", "")
+	logger.Info("停止netlink")
+	a.log("INFO", "Stopping netlink", "")
 
 	if a.statusCheck != nil {
 		a.statusCheck.Stop()
