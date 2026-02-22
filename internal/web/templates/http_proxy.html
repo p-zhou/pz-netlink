@@ -46,11 +46,6 @@
             </div>
             <form id="proxyForm">
                 <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="proxyEnabled"> 启用HTTP代理
-                    </label>
-                </div>
-                <div class="form-group">
                     <label>监听地址</label>
                     <input type="text" id="proxyListen" placeholder="0.0.0.0:1080" required>
                 </div>
@@ -58,6 +53,13 @@
                     <label>SSH服务器</label>
                     <select id="proxySSHServer">
                         <option value="">默认(第一个可用的)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>状态</label>
+                    <select id="proxyEnabled">
+                        <option value="false">禁用</option>
+                        <option value="true">启用</option>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary">保存配置</button>
@@ -76,14 +78,14 @@
             select.innerHTML = '<option value="">默认(第一个可用的)</option>' + servers.map(s => 
                 `<option value="${s.id}">${s.name}</option>`
             ).join('');
-            document.getElementById('proxyEnabled').checked = proxy.enabled;
+            document.getElementById('proxyEnabled').value = proxy.enabled.toString();
             document.getElementById('proxyListen').value = proxy.listen;
             document.getElementById('proxySSHServer').value = proxy.ssh_server_id || '';
         }
         document.getElementById('proxyForm').onsubmit = async (e) => {
             e.preventDefault();
             const data = {
-                enabled: document.getElementById('proxyEnabled').checked,
+                enabled: document.getElementById('proxyEnabled').value === 'true',
                 listen: document.getElementById('proxyListen').value,
                 ssh_server_id: document.getElementById('proxySSHServer').value
             };

@@ -106,9 +106,11 @@
                     <input type="number" id="forwardRemotePort" required>
                 </div>
                 <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="forwardEnabled" checked> 启用
-                    </label>
+                    <label>状态</label>
+                    <select id="forwardEnabled">
+                        <option value="false">禁用</option>
+                        <option value="true">启用</option>
+                    </select>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn" style="background:#e2e8f0" onclick="closeModal()">取消</button>
@@ -173,7 +175,7 @@
             document.getElementById('forwardListenPort').value = listenPort;
             document.getElementById('forwardRemoteHost').value = remoteHost;
             document.getElementById('forwardRemotePort').value = remotePort;
-            document.getElementById('forwardEnabled').checked = enabled;
+            document.getElementById('forwardEnabled').value = enabled.toString();
             document.getElementById('forwardModal').classList.add('active');
         }
         document.getElementById('forwardForm').onsubmit = async (e) => {
@@ -185,7 +187,7 @@
                 listen_port: parseInt(document.getElementById('forwardListenPort').value),
                 remote_host: document.getElementById('forwardRemoteHost').value,
                 remote_port: parseInt(document.getElementById('forwardRemotePort').value),
-                enabled: document.getElementById('forwardEnabled').checked
+                enabled: document.getElementById('forwardEnabled').value === 'true'
             };
             const id = document.getElementById('forwardId').value;
             if(id) {
