@@ -162,7 +162,7 @@ func (a *App) Start() error {
 	a.ctx = ctx
 	a.cancel = cancel
 
-	a.log("INFO", "Starting netlink", "")
+	a.log("INFO", "Starting NetLink", "")
 
 	if err := a.startSSHClients(); err != nil {
 		return err
@@ -337,8 +337,8 @@ func (a *App) checkStatus() {
 }
 
 func (a *App) Stop() {
-	logger.Info("停止netlink")
-	a.log("INFO", "Stopping netlink", "")
+	logger.Info("停止NetLink 服务")
+	a.log("INFO", "Stopping NetLink", "")
 
 	if a.statusCheck != nil {
 		a.statusCheck.Stop()
