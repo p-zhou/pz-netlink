@@ -529,10 +529,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	addr := ":" + app.config.Server.Port
-	if app.config.Server.Port == "" {
-		addr = ":" + *port
+	// 命令行参数优先于配置文件
+	serverPort := *port
+	// 检查用户是否显式指定了 -port 参数
+	portExplicitlySet := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "port" {
+			portExplicitlySet = true
+		}
+	})
+	if !portExplicitlySet && app.config.Server.Port != "" {
+		serverPort = app.config.Server.Port
 	}
+	addr := ":" + serverPort
 
 	app.httpServer = &http.Server{
 		Addr:    addr,
