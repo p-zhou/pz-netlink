@@ -380,6 +380,8 @@ func (a *App) AddSSHServer(s *types.SSHServer) {
 	s.ID = fmt.Sprintf("ssh-%d", time.Now().UnixNano())
 	a.config.SSHServers = append(a.config.SSHServers, *s)
 	a.store.Save(a.config)
+	a.log("INFO", fmt.Sprintf("SSH服务器已添加: %s (%s@%s:%d)", s.Name, s.Username, s.Host, s.Port), s.ID)
+	logger.Info("SSH服务器已添加", "name", s.Name, "id", s.ID, "host", s.Host, "port", s.Port)
 
 	go func() {
 		client := ssh.NewClient(s)
@@ -403,11 +405,21 @@ func (a *App) UpdateSSHServer(s *types.SSHServer) {
 		}
 	}
 	a.store.Save(a.config)
+	a.log("INFO", fmt.Sprintf("SSH服务器已修改: %s (%s@%s:%d)", s.Name, s.Username, s.Host, s.Port), s.ID)
+	logger.Info("SSH服务器已修改", "name", s.Name, "id", s.ID, "host", s.Host, "port", s.Port)
 }
 
 func (a *App) DeleteSSHServer(id string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	var serverName string
+	for _, s := range a.config.SSHServers {
+		if s.ID == id {
+			serverName = s.Name
+			break
+		}
+	}
 
 	if client, ok := a.sshClients[id]; ok {
 		client.Close()
@@ -421,7 +433,8 @@ func (a *App) DeleteSSHServer(id string) {
 		}
 	}
 	a.store.Save(a.config)
-	a.log("INFO", fmt.Sprintf("SSH server deleted: %s", id), id)
+	a.log("INFO", fmt.Sprintf("SSH服务器已删除: %s", serverName), id)
+	logger.Info("SSH服务器已删除", "name", serverName, "id", id)
 }
 
 func (a *App) GetPortForwards() []*types.PortForward {
@@ -440,6 +453,8 @@ func (a *App) AddPortForward(p *types.PortForward) {
 	p.ID = fmt.Sprintf("fw-%d", time.Now().UnixNano())
 	a.config.PortForwards = append(a.config.PortForwards, *p)
 	a.store.Save(a.config)
+	a.log("INFO", fmt.Sprintf("端口转发已添加: %s (%s:%d -> %s:%d)", p.Name, p.ListenHost, p.ListenPort, p.RemoteHost, p.RemotePort), p.ID)
+	logger.Info("端口转发已添加", "name", p.Name, "id", p.ID, "enabled", p.Enabled, "listen", fmt.Sprintf("%s:%d", p.ListenHost, p.ListenPort), "remote", fmt.Sprintf("%s:%d", p.RemoteHost, p.RemotePort))
 
 	if p.Enabled {
 		go a.startOnePortForward(p)
@@ -489,11 +504,21 @@ func (a *App) UpdatePortForward(p *types.PortForward) {
 		}
 	}
 	a.store.Save(a.config)
+	a.log("INFO", fmt.Sprintf("端口转发已修改: %s (%s:%d -> %s:%d)", p.Name, p.ListenHost, p.ListenPort, p.RemoteHost, p.RemotePort), p.ID)
+	logger.Info("端口转发已修改", "name", p.Name, "id", p.ID, "enabled", p.Enabled, "listen", fmt.Sprintf("%s:%d", p.ListenHost, p.ListenPort), "remote", fmt.Sprintf("%s:%d", p.RemoteHost, p.RemotePort))
 }
 
 func (a *App) DeletePortForward(id string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	var forwardName string
+	for _, f := range a.config.PortForwards {
+		if f.ID == id {
+			forwardName = f.Name
+			break
+		}
+	}
 
 	if fw, ok := a.forwarders[id]; ok {
 		fw.Stop()
@@ -507,7 +532,8 @@ func (a *App) DeletePortForward(id string) {
 		}
 	}
 	a.store.Save(a.config)
-	a.log("INFO", fmt.Sprintf("Port forward deleted: %s", id), id)
+	a.log("INFO", fmt.Sprintf("端口转发已删除: %s", forwardName), id)
+	logger.Info("端口转发已删除", "name", forwardName, "id", id)
 }
 
 func (a *App) GetHTTPProxyConfig() *types.HTTPProxyConfig {
@@ -538,7 +564,12 @@ func (a *App) UpdateHTTPProxyConfig(c *types.HTTPProxyConfig) {
 	}
 
 	a.store.Save(a.config)
-	a.log("INFO", "HTTP proxy config updated", "")
+	status := "禁用"
+	if c.Enabled {
+		status = "启用"
+	}
+	a.log("INFO", fmt.Sprintf("HTTP代理配置已更新: %s (监听: %s)", status, c.Listen), "")
+	logger.Info("HTTP代理配置已更新", "enabled", c.Enabled, "listen", c.Listen, "ssh_server_id", c.SSHServerID)
 }
 
 func (a *App) GetServerConfig() *types.ServerConfig {
