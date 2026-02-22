@@ -36,7 +36,12 @@ func NewHandler(manager Manager) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+	// 获取static子目录，使/static/css/common.css可访问
+	staticSub, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		panic(err)
+	}
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
 
 	mux.HandleFunc("/", h.index)
 	mux.HandleFunc("/connections", h.connections)
