@@ -151,8 +151,8 @@ pz-netlink 是一个基于 SSH 隧道的代理和端口转发工具，具有以�
 - HTTP 代理, 端口 `61080`;
 
 **注意**:
-1. 测试前, 请通过 http://localhost:8080/ 进入页面, 修改底层使用的 SSH 服务器连接地址、账号等信息.
-2. 默认配置的端口映射和 HTTP 代理没有启用，请修改相应定义，启用这两个配置.
+1. 测试前请通过 http://localhost:8080/ssh-servers 设置 SSH 连接信息;
+2. 默认配置的端口映射和 HTTP 代理没有启用，请修改相应定义，启用这两个配置;
 
 ### 测试内容
 
@@ -168,8 +168,8 @@ pz-netlink 是一个基于 SSH 隧道的代理和端口转发工具，具有以�
 2. **HTTP/HTTPS 代理测试**
    ```bash
    # 通过标准代理方式访问
-   curl -x localhost:61080 https://example.com/
+   curl -x localhost:61080 https://thinkbase.net/
    
    # 并发测试
-   parallel -j 10 curl -x localhost:61080 https://example.com/ ::: {1..10}
+   parallel -j 10 curl -x localhost:61080 https://thinkbase.net/ ::: {1..10}
    ```
