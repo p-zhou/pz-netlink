@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -14,24 +13,6 @@ import (
 
 //go:embed config.toml
 var defaultConfig []byte
-
-var envVarPattern = regexp.MustCompile(`\$\{([^}]+)\}`)
-
-func expandEnvVars(data []byte) []byte {
-	// 将 []byte 转换为 string，展开环境变量，再转回 []byte
-	dataStr := string(data)
-	expanded := envVarPattern.ReplaceAllStringFunc(dataStr, func(match string) string {
-		// 提取变量名 ${VAR_NAME} 中的 VAR_NAME
-		varName := match[2 : len(match)-1]
-		envValue := os.Getenv(varName)
-		if envValue == "" {
-			// 环境变量未设置，返回原样
-			return match
-		}
-		return envValue
-	})
-	return []byte(expanded)
-}
 
 type Store struct {
 	path string
@@ -59,11 +40,8 @@ func (s *Store) Load() (*types.Config, error) {
 		}
 	}
 
-	// 展开环境变量
-	expandedData := expandEnvVars(data)
-
 	cfg := &types.Config{}
-	if err := toml.Unmarshal(expandedData, cfg); err != nil {
+	if err := toml.Unmarshal(data, cfg); err != nil {
 		return nil, err
 	}
 
