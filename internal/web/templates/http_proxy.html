@@ -54,17 +54,19 @@
         let servers = [];
 
         async function loadData() {
-            [servers, proxy] = await Promise.all([
+            const [serversData, proxyData] = await Promise.all([
                 fetch('/api/ssh-servers').then(r => r.json()),
                 fetch('/api/http-proxy').then(r => r.json())
             ]);
+            servers = serversData || [];
             const select = document.getElementById('proxySSHServer');
             select.innerHTML = '<option value="">默认(第一个可用的)</option>' + servers.map(s => 
                 `<option value="${s.id}">${s.name}</option>`
             ).join('');
-            document.getElementById('proxyEnabled').value = proxy.enabled.toString();
-            document.getElementById('proxyListen').value = proxy.listen;
-            document.getElementById('proxySSHServer').value = proxy.ssh_server_id || '';
+            const proxyCfg = proxyData || { enabled: false, listen: '', ssh_server_id: '' };
+            document.getElementById('proxyEnabled').value = proxyCfg.enabled.toString();
+            document.getElementById('proxyListen').value = proxyCfg.listen;
+            document.getElementById('proxySSHServer').value = proxyCfg.ssh_server_id || '';
         }
         document.getElementById('proxyForm').onsubmit = async (e) => {
             e.preventDefault();

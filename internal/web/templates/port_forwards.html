@@ -96,19 +96,21 @@
         let servers = [];
 
         async function loadData() {
-            [servers, forwards] = await Promise.all([
+            const [serversData, forwardsData] = await Promise.all([
                 fetch('/api/ssh-servers').then(r => r.json()),
                 fetch('/api/port-forwards').then(r => r.json())
             ]);
-            renderTable(forwards);
+            servers = serversData || [];
+            renderTable(forwardsData);
         }
         function renderTable(forwards) {
+            const forwardsList = forwards || [];
             const tbody = document.getElementById('forwardTable');
-            if(forwards.length === 0) {
+            if(forwardsList.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无端口转发</td></tr>';
                 return;
             }
-            tbody.innerHTML = forwards.map(f => {
+            tbody.innerHTML = forwardsList.map(f => {
                 const server = servers.find(s => s.id === f.ssh_server_id) || {};
                 return `
                 <tr>

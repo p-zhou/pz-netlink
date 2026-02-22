@@ -60,11 +60,12 @@
         async function loadConnections() {
             const conns = await fetch('/api/connections').then(r => r.json());
             const tbody = document.getElementById('connectionsTable');
-            if(conns.length === 0) {
+            const connsList = conns || [];
+            if(connsList.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">暂无活动连接</td></tr>';
                 return;
             }
-            tbody.innerHTML = conns.map(c => `
+            tbody.innerHTML = connsList.map(c => `
                 <tr>
                     <td>${c.name}</td>
                     <td>${c.type}</td>

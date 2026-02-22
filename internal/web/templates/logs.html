@@ -41,11 +41,12 @@
         async function loadLogs() {
             const logs = await fetch('/api/logs').then(r => r.json());
             const container = document.getElementById('logList');
-            if(logs.length === 0) {
+            const logsList = logs || [];
+            if(logsList.length === 0) {
                 container.innerHTML = '<div style="text-align:center; padding:2rem;">暂无日志</div>';
                 return;
             }
-            container.innerHTML = logs.slice().reverse().map(l => `
+            container.innerHTML = logsList.slice().reverse().map(l => `
                 <div class="log-entry">
                     <span class="log-time">${formatTime(l.timestamp)}</span>
                     <span class="log-level ${l.level}">${l.level}</span>

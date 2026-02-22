@@ -100,11 +100,12 @@
         async function loadServers() {
             const servers = await fetch('/api/ssh-servers').then(r => r.json());
             const tbody = document.getElementById('serverTable');
-            if(servers.length === 0) {
+            const serversList = servers || [];
+            if(serversList.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无SSH服务器</td></tr>';
                 return;
             }
-            tbody.innerHTML = servers.map(s => `
+            tbody.innerHTML = serversList.map(s => `
                 <tr>
                     <td>${s.name}</td>
                     <td>${s.host}</td>
