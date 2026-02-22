@@ -70,8 +70,13 @@ jobs:
 
       - name: Flatten artifacts
         run: |
-          find artifacts -type f -exec mv {} artifacts/ \;
-          find artifacts -type d -empty -delete
+          # 创建临时目录用于存放二进制文件
+          mkdir -p flat_artifacts
+          # 递归遍历所有子目录，将文件移到 flat_artifacts
+          find artifacts -type f -name "pz-netlink-*" -exec mv {} flat_artifacts/ \;
+          # 清理原目录
+          rm -rf artifacts
+          mv flat_artifacts artifacts
           ls -la artifacts
 
       - name: Create checksums
