@@ -31,7 +31,7 @@
 # 端口转发规则列表
 [[port_forwards]]
   # 转发规则唯一标识
-  id = "test-port-forward-01"
+  id = "port-forward-001"
   # 规则名称
   name = "测试的端口转发"
   # 关联的 SSH 服务器 ID
