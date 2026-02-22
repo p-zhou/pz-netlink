@@ -1,6 +1,39 @@
 # pz-netlink
 一个用于简单目的的 HTTP 代理及端口映射工具
 
+## 使用说明
+
+### 命令行参数
+
+程序支持以下可选命令行参数：
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `-config` | 配置文件路径 | `.conf/config.toml` |
+| `-port` | Web 服务监听端口 | `8080` |
+| `-log-level` | 日志级别 (DEBUG, INFO, WARN, ERROR) | `INFO` |
+
+**使用示例：**
+```bash
+# 使用自定义配置文件
+./pz-netlink -config /path/to/custom.toml
+
+# 指定 Web 服务端口
+./pz-netlink -port 9000
+
+# 设置日志级别为 DEBUG
+./pz-netlink -log-level DEBUG
+
+# 组合使用
+./pz-netlink -config my.toml -port 9000 -log-level DEBUG
+```
+
+**注意：** 命令行参数 `-port` 会覆盖配置文件中的 `server.port` 设置，除非使用默认值 `8080`。
+
+### 配置文件
+
+使用 TOML 格式的配置文件（如果不在命令行参数指定, 则默认为 `.conf/config.toml` 文件），程序首次运行时会自动创建配置文件。
+
 ## 概要设计
 
 ### 系统架构
@@ -80,60 +113,6 @@ pz-netlink 是一个基于 SSH 隧道的代理和端口转发工具，具有以�
 - **配置管理**：通过 Web 界面添加/删除 SSH 服务器和端口转发规则
 - **服务控制**：支持启动、停止、重启服务
 
-### 配置文件
-
-使用 TOML 格式的配置文件（`.conf/config.toml`），支持注释。程序首次运行时会自动创建配置文件，以下为配置示例：
-
-```toml
-# 示例配置：服务器配置
-[server]
-port = "8080"  # Web 服务监听端口
-
-# 示例配置：SSH 服务器配置
-[[ssh_servers]]
-id = "ssh-server-1"
-name = "测试服务器"
-host = "your ssh server"
-port = 22
-username = "your ssh account"
-password = "your ssh password"
-keep_alive_interval = 30
-
-# 示例配置：端口转发规则
-[[port_forwards]]
-id = "fw-60080"
-name = "60080"
-ssh_server_id = "ssh-server-1"
-listen_host = "0.0.0.0"
-listen_port = 60080
-remote_host = "example.com"
-remote_port = 80
-enabled = true
-
-# 示例配置：HTTP 代理
-[http_proxy]
-enabled = true
-listen = "0.0.0.0:61080"
-ssh_server_id = "ssh-server-1"
-```
-
-### 使用场景
-
-1. **访问远程 Web 服务**
-   ```bash
-   # 通过端口映射访问示例
-   curl http://localhost:60080/
-   ```
-
-2. **使用 HTTP/HTTPS 代理**
-   ```bash
-   # 标准代理方式（浏览器/工具）
-   curl -x localhost:61080 https://example.com/
-   
-   # 并发测试示例
-   parallel -j 10 curl -x localhost:61080 https://example.com/ ::: {1..10}
-   ```
-
 ## 构建说明
 
 ### 前置要求
@@ -165,33 +144,32 @@ ssh_server_id = "ssh-server-1"
    ./pz-netlink
    ```
 
-### 命令行参数
+## 测试
 
-程序支持以下命令行参数：
+默认配置定义了如下内容:
+- 端口映射, 本地端口 `60080` -> http://example.com
+- HTTP 代理, 端口 `61080`;
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `-config` | 配置文件路径 | `.conf/config.toml` |
-| `-port` | Web 服务监听端口 | `8080` |
-| `-log-level` | 日志级别 (DEBUG, INFO, WARN, ERROR) | `INFO` |
+**注意**:
+1. 测试前, 请通过 http://localhost:8080/ 进入页面, 修改底层使用的 SSH 服务器连接地址、账号等信息.
+2. 默认配置的端口映射和 HTTP 代理没有启用，请修改相应定义，启用这两个配置.
 
-**使用示例：**
-```bash
-# 使用自定义配置文件
-./pz-netlink -config /path/to/custom.toml
+### 测试内容
 
-# 指定 Web 服务端口
-./pz-netlink -port 9000
+1. **端口映射测试**
+   ```bash
+   # 通过端口映射访问
+   curl http://localhost:60080/
+   
+   # 并发测试
+   parallel -j 10 curl http://localhost:60080/ ::: {1..10}
+   ```
 
-# 设置日志级别为 DEBUG
-./pz-netlink -log-level DEBUG
-
-# 组合使用
-./pz-netlink -config my.toml -port 9000 -log-level DEBUG
-```
-
-**注意：** 命令行参数 `-port` 会覆盖配置文件中的 `server.port` 设置，除非使用默认值 `8080`。
-
-### 配置
-
-程序默认使用 `.conf/config.toml` 作为配置文件，程序首次运行时会自动创建配置文件，根据需要修改配置后重新运行。
+2. **HTTP/HTTPS 代理测试**
+   ```bash
+   # 通过标准代理方式访问
+   curl -x localhost:61080 https://example.com/
+   
+   # 并发测试
+   parallel -j 10 curl -x localhost:61080 https://example.com/ ::: {1..10}
+   ```
