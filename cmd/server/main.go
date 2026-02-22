@@ -91,14 +91,14 @@ func (a *App) expandEnvVar(value string, pattern *regexp.Regexp, fieldName strin
 	varName := match[1]
 	envValue := os.Getenv(varName)
 	if envValue != "" {
-		logger.Debug("使用环境变量值", "field", fieldName, "env_var", varName, "value", "***")
+		logger.Debug(fmt.Sprintf("变量 '%s' 使用环境变量值: field=%s value=%s", varName, fieldName, envValue))
 		return envValue
 	}
 	if len(match) >= 3 {
-		logger.Debug("使用默认值", "field", fieldName, "env_var", varName, "default", "***")
+		logger.Debug(fmt.Sprintf("变量 '%s' 使用默认值 field=%s default=%s", varName, fieldName, match[2]))
 		return match[2]
 	}
-	logger.Debug("环境变量未设置且无默认值", "field", fieldName, "env_var", varName)
+	logger.Debug(fmt.Sprintf("变量 '%s' 环境变量未设置且无默认值 field=%s", varName, fieldName))
 	return value
 }
 
