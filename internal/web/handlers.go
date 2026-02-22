@@ -15,7 +15,7 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
-//go:embed static/*
+//go:embed static/* static/css/* static/js/*
 var staticFS embed.FS
 
 type Handler struct {
