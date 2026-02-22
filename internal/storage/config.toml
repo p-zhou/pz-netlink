@@ -5,7 +5,7 @@
   # 默认 Admin 用户名
   username = "admin"
   # Admin 用户的访问密码(可以使用环境变量, 比如 ${ADMIN_PASSWORD})
-  password = "${ADMIN_PASSWORD}"
+  password = "${ADMIN_PASSWORD:-}"
 
 # SSH 服务器列表
 [[ssh_servers]]

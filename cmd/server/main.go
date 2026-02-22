@@ -70,29 +70,36 @@ func (a *App) SaveConfig() error {
 }
 
 func (a *App) resolveEnvVars() {
-	envVarPattern := regexp.MustCompile(`^\$\{([^}]+)\}$`)
+	envVarPattern := regexp.MustCompile(`^\$\{([^}:]+)(?::-([^}]+))?\}$`)
 
-	if envVarPattern.MatchString(a.config.Server.Password) {
-		match := envVarPattern.FindStringSubmatch(a.config.Server.Password)
-		if len(match) == 2 {
-			envValue := os.Getenv(match[1])
-			if envValue != "" {
-				a.config.Server.Password = envValue
-			}
-		}
-	}
+	a.config.Server.Password = a.expandEnvVar(a.config.Server.Password, envVarPattern, "server.password")
 
 	for i := range a.config.SSHServers {
-		if envVarPattern.MatchString(a.config.SSHServers[i].Password) {
-			match := envVarPattern.FindStringSubmatch(a.config.SSHServers[i].Password)
-			if len(match) == 2 {
-				envValue := os.Getenv(match[1])
-				if envValue != "" {
-					a.config.SSHServers[i].Password = envValue
-				}
-			}
-		}
+		fieldName := fmt.Sprintf("ssh_servers[%s].password", a.config.SSHServers[i].ID)
+		a.config.SSHServers[i].Password = a.expandEnvVar(a.config.SSHServers[i].Password, envVarPattern, fieldName)
 	}
+}
+
+func (a *App) expandEnvVar(value string, pattern *regexp.Regexp, fieldName string) string {
+	if !pattern.MatchString(value) {
+		return value
+	}
+	match := pattern.FindStringSubmatch(value)
+	if len(match) < 2 {
+		return value
+	}
+	varName := match[1]
+	envValue := os.Getenv(varName)
+	if envValue != "" {
+		logger.Debug("使用环境变量值", "field", fieldName, "env_var", varName, "value", "***")
+		return envValue
+	}
+	if len(match) >= 3 && match[2] != "" {
+		logger.Debug("使用默认值", "field", fieldName, "env_var", varName, "default", "***")
+		return match[2]
+	}
+	logger.Debug("环境变量未设置且无默认值", "field", fieldName, "env_var", varName)
+	return value
 }
 
 func (a *App) log(level, msg, connID string) {
