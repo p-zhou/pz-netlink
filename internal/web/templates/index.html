@@ -58,9 +58,9 @@
                     fetch('/api/port-forwards').then(r => r.json()),
                     fetch('/api/ssh-servers').then(r => r.json())
                 ]);
-                document.getElementById('connectionCount').textContent = conns.length;
-                document.getElementById('forwardCount').textContent = forwards.filter(f => f.enabled).length;
-                document.getElementById('sshCount').textContent = ssh.length;
+                document.getElementById('connectionCount').textContent = (conns || []).length;
+                document.getElementById('forwardCount').textContent = (forwards || []).filter(f => f.enabled).length;
+                document.getElementById('sshCount').textContent = (ssh || []).length;
             } catch(e) { console.error(e); }
         }
         async function restartService() {
