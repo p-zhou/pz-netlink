@@ -48,6 +48,14 @@
         function formatTime(t) {
             return new Date(t).toLocaleString();
         }
+        function formatLevel(level) {
+            const levelMap = {
+                'INFO': '信息',
+                'WARN': '警告',
+                'ERROR': '错误'
+            };
+            return levelMap[level] || level;
+        }
         async function loadLogs() {
             const logs = await fetch('/api/logs').then(r => r.json());
             const container = document.getElementById('logList');
@@ -59,7 +67,7 @@
             container.innerHTML = logsList.slice().reverse().map(l => `
                 <div class="log-entry">
                     <span class="log-time">${formatTime(l.timestamp)}</span>
-                    <span class="log-level ${l.level}">${l.level}</span>
+                    <span class="log-level ${l.level}">${formatLevel(l.level)}</span>
                     <span>${l.message}</span>
                 </div>
             `).join('');
