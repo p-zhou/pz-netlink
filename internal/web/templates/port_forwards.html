@@ -33,6 +33,11 @@
         .modal-content { background: white; padding: 1.5rem; border-radius: 8px; width: 100%; max-width: 500px; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+        dialog { border: none; border-radius: 8px; padding: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        dialog::backdrop { background: rgba(0,0,0,0.5); }
+        .dialog-content { padding: 1.5rem; min-width: 400px; max-width: 600px; }
+        .dialog-body { white-space: pre-wrap; margin-bottom: 1rem; line-height: 1.5; }
+        .dialog-footer { display: flex; justify-content: flex-end; gap: 0.5rem; }
     </style>
 </head>
 <body>
@@ -120,8 +125,36 @@
         </div>
     </div>
 
+    <dialog id="confirmDialog">
+        <div class="dialog-content">
+            <div class="dialog-body" id="confirmBody"></div>
+            <div class="dialog-footer">
+                <button class="btn" style="background:#e2e8f0" onclick="closeConfirm(false)">取消</button>
+                <button class="btn btn-primary" onclick="closeConfirm(true)">确定</button>
+            </div>
+        </div>
+    </dialog>
+
     <script>
         let servers = [];
+        let confirmResolve = null;
+
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                document.getElementById('confirmBody').textContent = message;
+                document.getElementById('confirmDialog').showModal();
+                confirmResolve = resolve;
+            });
+        }
+
+        function closeConfirm(result) {
+            document.getElementById('confirmDialog').close();
+            if (confirmResolve) {
+                confirmResolve(result);
+                confirmResolve = null;
+            }
+        }
+
         async function loadData() {
             [servers, forwards] = await Promise.all([
                 fetch('/api/ssh-servers').then(r => r.json()),
@@ -200,7 +233,7 @@
             loadData();
         };
         async function deleteForward(id) {
-            if(confirm('确定要删除这个端口转发吗?')) {
+            if(await showConfirm('确定要删除这个端口转发吗?')) {
                 await fetch('/api/port-forwards?id=' + id, { method: 'DELETE' });
                 loadData();
             }

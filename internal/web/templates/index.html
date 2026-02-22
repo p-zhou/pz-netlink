@@ -39,6 +39,11 @@
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
         .modal-header h3 { font-size: 1.25rem; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+        dialog { border: none; border-radius: 8px; padding: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        dialog::backdrop { background: rgba(0,0,0,0.5); }
+        .dialog-content { padding: 1.5rem; min-width: 400px; max-width: 600px; }
+        .dialog-body { white-space: pre-wrap; margin-bottom: 1rem; line-height: 1.5; }
+        .dialog-footer { display: flex; justify-content: flex-end; gap: 0.5rem; }
     </style>
 </head>
 <body>
@@ -80,7 +85,54 @@
             </div>
         </div>
     </main>
+
+    <dialog id="confirmDialog">
+        <div class="dialog-content">
+            <div class="dialog-body" id="confirmBody"></div>
+            <div class="dialog-footer">
+                <button class="btn" style="background:#e2e8f0" onclick="closeConfirm(false)">取消</button>
+                <button class="btn btn-primary" onclick="closeConfirm(true)">确定</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="alertDialog">
+        <div class="dialog-content">
+            <div class="dialog-body" id="alertBody"></div>
+            <div class="dialog-footer">
+                <button class="btn btn-primary" onclick="closeAlert()">确定</button>
+            </div>
+        </div>
+    </dialog>
+
     <script>
+        let confirmResolve = null;
+
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                document.getElementById('confirmBody').textContent = message;
+                document.getElementById('confirmDialog').showModal();
+                confirmResolve = resolve;
+            });
+        }
+
+        function closeConfirm(result) {
+            document.getElementById('confirmDialog').close();
+            if (confirmResolve) {
+                confirmResolve(result);
+                confirmResolve = null;
+            }
+        }
+
+        function showAlert(message) {
+            document.getElementById('alertBody').textContent = message;
+            document.getElementById('alertDialog').showModal();
+        }
+
+        function closeAlert() {
+            document.getElementById('alertDialog').close();
+        }
+
         async function loadStats() {
             try {
                 const [conns, forwards, ssh] = await Promise.all([
@@ -94,14 +146,14 @@
             } catch(e) { console.error(e); }
         }
         async function restartService() {
-            if(confirm('确定要重启服务吗?')) {
+            if(await showConfirm('确定要重启服务吗?')) {
                 const res = await fetch('/api/restart', { method: 'POST' }).then(r => r.json());
                 const sshTotal = res.ssh_servers.total;
                 const sshEnabled = res.ssh_servers.enabled;
                 const fwTotal = res.port_forwards.total;
                 const fwEnabled = res.port_forwards.enabled;
                 const proxyEnabled = res.http_proxy.enabled ? '已启用' : '未启用';
-                alert(`重启完成\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：${proxyEnabled}`);
+                showAlert(`重启完成\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：${proxyEnabled}`);
                 loadStats();
             }
         }
