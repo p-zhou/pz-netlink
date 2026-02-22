@@ -99,7 +99,7 @@ func (a *App) expandEnvVar(value string, pattern *regexp.Regexp, fieldName strin
 		if isDebug {
 			logger.Debug(fmt.Sprintf("变量 '%s' 使用环境变量值: field=%s value=%s", varName, fieldName, envValue))
 		} else {
-			logger.Warn(fmt.Sprintf("变量 '%s' 使用环境变量值: field=%s", varName, fieldName))
+			logger.Info(fmt.Sprintf("变量 '%s' 使用环境变量值: field=%s", varName, fieldName))
 		}
 		return envValue
 	}
@@ -112,7 +112,7 @@ func (a *App) expandEnvVar(value string, pattern *regexp.Regexp, fieldName strin
 		if isDebug {
 			logger.Debug(fmt.Sprintf("变量 '%s' 使用默认值 field=%s default=%s", varName, fieldName, defaultValue))
 		} else {
-			logger.Warn(fmt.Sprintf("变量 '%s' 使用默认值 field=%s", varName, fieldName))
+			logger.Info(fmt.Sprintf("变量 '%s' 使用默认值 field=%s", varName, fieldName))
 		}
 		return defaultValue
 	}
