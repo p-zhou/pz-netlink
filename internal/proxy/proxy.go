@@ -16,7 +16,9 @@ import (
 )
 
 type Proxy struct {
-	config    *types.HTTPProxyConfig
+	id        string
+	name      string
+	config    *types.HTTPProxy
 	sshDialer interface {
 		Dial(network, addr string) (net.Conn, error)
 	}
@@ -29,10 +31,12 @@ type Proxy struct {
 	conns     map[string]net.Conn
 }
 
-func NewProxy(cfg *types.HTTPProxyConfig, dialer interface {
+func NewProxy(id string, name string, cfg *types.HTTPProxy, dialer interface {
 	Dial(network, addr string) (net.Conn, error)
 }) *Proxy {
 	return &Proxy{
+		id:        id,
+		name:      name,
 		config:    cfg,
 		sshDialer: dialer,
 		conns:     make(map[string]net.Conn),
@@ -535,9 +539,9 @@ func (p *Proxy) GetStatus() *types.ConnectionStatus {
 	p.mu.RUnlock()
 
 	return &types.ConnectionStatus{
-		ID:                "http-proxy",
+		ID:                p.id,
 		Type:              "http_proxy",
-		Name:              "HTTP Proxy",
+		Name:              p.name,
 		LocalAddr:         p.config.Listen,
 		Status:            status,
 		BytesIn:           atomic.LoadInt64(&p.bytesIn),

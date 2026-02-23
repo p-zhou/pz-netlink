@@ -38,6 +38,10 @@
                     <div class="stat-value" id="sshCount">0</div>
                     <div class="stat-label">SSH服务器</div>
                 </div>
+                <div class="stat">
+                    <div class="stat-value" id="proxyCount">0</div>
+                    <div class="stat-label">HTTP代理</div>
+                </div>
             </div>
         </div>
         <div class="card">
@@ -54,14 +58,16 @@
     <script>
         async function loadStats() {
             try {
-                const [conns, forwards, ssh] = await Promise.all([
+                const [conns, forwards, ssh, proxies] = await Promise.all([
                     fetch('/api/connections').then(r => r.json()),
                     fetch('/api/port-forwards').then(r => r.json()),
-                    fetch('/api/ssh-servers').then(r => r.json())
+                    fetch('/api/ssh-servers').then(r => r.json()),
+                    fetch('/api/http-proxies').then(r => r.json())
                 ]);
                 document.getElementById('connectionCount').textContent = (conns || []).length;
                 document.getElementById('forwardCount').textContent = (forwards || []).filter(f => f.enabled).length;
                 document.getElementById('sshCount').textContent = (ssh || []).length;
+                document.getElementById('proxyCount').textContent = (proxies || []).filter(p => p.enabled).length;
             } catch(e) { console.error(e); }
         }
         async function restartService() {
@@ -71,8 +77,9 @@
                 const sshEnabled = res.ssh_servers.enabled;
                 const fwTotal = res.port_forwards.total;
                 const fwEnabled = res.port_forwards.enabled;
-                const proxyEnabled = res.http_proxy.enabled ? '已启用' : '未启用';
-                showAlert(`重启完成\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：${proxyEnabled}`);
+                const proxyTotal = res.http_proxies.total;
+                const proxyEnabled = res.http_proxies.enabled;
+                showAlert(`重启完成\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：共${proxyTotal}个，启用${proxyEnabled}个`);
                 loadStats();
             }
         }

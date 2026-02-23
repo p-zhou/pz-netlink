@@ -11,6 +11,13 @@ import (
 	"pz-netlink/pkg/types"
 )
 
+type legacyConfig struct {
+	Server       types.ServerConfig    `toml:"server"`
+	SSHServers   []types.SSHServer     `toml:"ssh_servers"`
+	PortForwards []types.PortForward   `toml:"port_forwards"`
+	HTTPProxy    types.HTTPProxyConfig `toml:"http_proxy"`
+}
+
 //go:embed config.toml
 var defaultConfig []byte
 
@@ -75,4 +82,21 @@ func (s *Store) Get() *types.Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.data
+}
+
+func (s *Store) LoadRaw() (*legacyConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := os.ReadFile(s.path)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := &legacyConfig{}
+	if err := toml.Unmarshal(data, cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }

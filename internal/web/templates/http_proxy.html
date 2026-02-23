@@ -22,15 +22,41 @@
             <a href="/http-proxy">HTTP代理</a>
         </nav>
     </header>
-    <main class="container">
+    <main class="container-full">
         <div class="card">
-            <h2>HTTP代理设置</h2>
-            <div class="info-box">
-                <p><strong>HTTP代理说明：</strong></p>
-                <p>启用HTTP代理后，可通过配置浏览器或系统代理来通过SSH服务器访问网络。</p>
-                <p>代理地址: http://[服务器IP]:[监听端口]</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h2>HTTP代理</h2>
+                <button class="btn btn-primary" onclick="openModal()">添加代理</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>监听地址</th>
+                        <th>SSH服务器</th>
+                        <th class="no-wrap">状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="proxyTable">
+                    <tr><td colspan="5" style="text-align:center;">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div class="modal" id="proxyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">添加HTTP代理</h3>
+                <span style="cursor:pointer" onclick="closeModal()">&times;</span>
             </div>
             <form id="proxyForm">
+                <input type="hidden" id="proxyId">
+                <div class="form-group">
+                    <label>名称</label>
+                    <input type="text" id="proxyName" required>
+                </div>
                 <div class="form-group">
                     <label>监听地址</label>
                     <input type="text" id="proxyListen" placeholder="0.0.0.0:1080" required>
@@ -48,40 +74,103 @@
                         <option value="true">启用</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary">保存配置</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn" style="background:#e2e8f0" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
             </form>
         </div>
-    </main>
+    </div>
 
     <script src="/static/js/common.js"></script>
     <script>
         let servers = [];
 
         async function loadData() {
-            const [serversData, proxyData] = await Promise.all([
+            const [serversData, proxiesData] = await Promise.all([
                 fetch('/api/ssh-servers').then(r => r.json()),
-                fetch('/api/http-proxy').then(r => r.json())
+                fetch('/api/http-proxies').then(r => r.json())
             ]);
             servers = serversData || [];
+            renderTable(proxiesData);
+        }
+
+        function renderTable(proxies) {
+            const proxiesList = proxies || [];
+            const tbody = document.getElementById('proxyTable');
+            if(proxiesList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">暂无HTTP代理</td></tr>';
+                return;
+            }
+            tbody.innerHTML = proxiesList.map(p => {
+                const server = servers.find(s => s.id === p.ssh_server_id) || {};
+                return `
+                <tr>
+                    <td>${p.name}</td>
+                    <td>${p.listen}</td>
+                    <td>${server.name || '默认'}</td>
+                    <td class="no-wrap">${p.enabled ? '已启用' : '已禁用'}</td>
+                    <td class="actions">
+                        <button class="btn btn-edit" onclick="editProxy('${p.id}', '${p.name}', '${p.listen}', '${p.ssh_server_id}', ${p.enabled})">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteProxy('${p.id}')">删除</button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        function openModal() {
+            document.getElementById('modalTitle').textContent = '添加HTTP代理';
+            document.getElementById('proxyForm').reset();
             const select = document.getElementById('proxySSHServer');
             select.innerHTML = '<option value="">默认(第一个可用的)</option>' + servers.map(s => 
                 `<option value="${s.id}">${s.name}</option>`
             ).join('');
-            const proxyCfg = proxyData || { enabled: false, listen: '', ssh_server_id: '' };
-            document.getElementById('proxyEnabled').value = proxyCfg.enabled.toString();
-            document.getElementById('proxyListen').value = proxyCfg.listen;
-            document.getElementById('proxySSHServer').value = proxyCfg.ssh_server_id || '';
+            document.getElementById('proxyModal').classList.add('active');
         }
+
+        function closeModal() {
+            document.getElementById('proxyModal').classList.remove('active');
+        }
+
+        function editProxy(id, name, listen, sshServerId, enabled) {
+            document.getElementById('modalTitle').textContent = '编辑HTTP代理';
+            document.getElementById('proxyId').value = id;
+            document.getElementById('proxyName').value = name;
+            document.getElementById('proxyListen').value = listen;
+            const select = document.getElementById('proxySSHServer');
+            select.innerHTML = servers.map(s => 
+                `<option value="${s.id}" ${s.id === sshServerId ? 'selected' : ''}>${s.name}</option>`
+            ).join('');
+            document.getElementById('proxyEnabled').value = enabled.toString();
+            document.getElementById('proxyModal').classList.add('active');
+        }
+
         document.getElementById('proxyForm').onsubmit = async (e) => {
             e.preventDefault();
             const data = {
-                enabled: document.getElementById('proxyEnabled').value === 'true',
+                name: document.getElementById('proxyName').value,
                 listen: document.getElementById('proxyListen').value,
-                ssh_server_id: document.getElementById('proxySSHServer').value
+                ssh_server_id: document.getElementById('proxySSHServer').value,
+                enabled: document.getElementById('proxyEnabled').value === 'true'
             };
-            await fetch('/api/http-proxy', { method: 'PUT', body: JSON.stringify(data) });
-            showAlert('配置已保存');
+            const id = document.getElementById('proxyId').value;
+            if(id) {
+                data.id = id;
+                await fetch('/api/http-proxies', { method: 'PUT', body: JSON.stringify(data) });
+            } else {
+                await fetch('/api/http-proxies', { method: 'POST', body: JSON.stringify(data) });
+            }
+            closeModal();
+            loadData();
         };
+
+        async function deleteProxy(id) {
+            if(await showConfirm('确定要删除这个HTTP代理吗?')) {
+                await fetch('/api/http-proxies?id=' + id, { method: 'DELETE' });
+                loadData();
+            }
+        }
+
         loadData();
     </script>
 </body>

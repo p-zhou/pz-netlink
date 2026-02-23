@@ -35,7 +35,7 @@ type App struct {
 	httpHandler http.Handler
 	httpServer  *http.Server
 	forwarders  map[string]*forward.Forwarder
-	httpProxy   *proxy.Proxy
+	httpProxies map[string]*proxy.Proxy
 	sshClients  map[string]*ssh.Client
 	logs        []*types.LogEntry
 	logMu       sync.RWMutex
@@ -48,13 +48,14 @@ type App struct {
 func NewApp(configPath string) *App {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &App{
-		store:      storage.New(configPath),
-		mux:        http.NewServeMux(),
-		forwarders: make(map[string]*forward.Forwarder),
-		sshClients: make(map[string]*ssh.Client),
-		ctx:        ctx,
-		cancel:     cancel,
-		httpServer: &http.Server{},
+		store:       storage.New(configPath),
+		mux:         http.NewServeMux(),
+		forwarders:  make(map[string]*forward.Forwarder),
+		httpProxies: make(map[string]*proxy.Proxy),
+		sshClients:  make(map[string]*ssh.Client),
+		ctx:         ctx,
+		cancel:      cancel,
+		httpServer:  &http.Server{},
 	}
 }
 
@@ -63,9 +64,39 @@ func (a *App) LoadConfig() error {
 	if err != nil {
 		return err
 	}
+
+	a.migrateHTTPProxyConfig(cfg)
+
 	a.config = cfg
 	a.resolveEnvVars()
 	return nil
+}
+
+func (a *App) migrateHTTPProxyConfig(cfg *types.Config) {
+	if len(cfg.HTTPProxies) > 0 {
+		return
+	}
+	legacyCfg, err := a.store.LoadRaw()
+	if err != nil {
+		return
+	}
+	if legacyCfg == nil {
+		return
+	}
+	if !legacyCfg.HTTPProxy.Enabled && legacyCfg.HTTPProxy.Listen == "" {
+		return
+	}
+	proxyID := fmt.Sprintf("proxy-%d", time.Now().UnixNano())
+	cfg.HTTPProxies = []types.HTTPProxy{
+		{
+			ID:          proxyID,
+			Name:        "HTTP代理",
+			Enabled:     legacyCfg.HTTPProxy.Enabled,
+			Listen:      legacyCfg.HTTPProxy.Listen,
+			SSHServerID: legacyCfg.HTTPProxy.SSHServerID,
+		},
+	}
+	logger.Info("已迁移旧版HTTP代理配置到新版多代理格式", "listen", legacyCfg.HTTPProxy.Listen)
 }
 
 func (a *App) SaveConfig() error {
@@ -248,33 +279,37 @@ func (a *App) startPortForwards() error {
 }
 
 func (a *App) startHTTPProxy() error {
-	if !a.config.HTTPProxy.Enabled {
-		return nil
-	}
-	var client *ssh.Client
-	if a.config.HTTPProxy.SSHServerID != "" {
-		client = a.sshClients[a.config.HTTPProxy.SSHServerID]
-	}
-	if client == nil {
-		if len(a.sshClients) == 0 {
-			logger.Warn("无可用SSH服务器用于HTTP代理，跳过启动")
-			a.log("WARN", "无可用SSH服务器用于HTTP代理，跳过启动", "")
-			return nil
+	for _, p := range a.config.HTTPProxies {
+		if !p.Enabled {
+			continue
 		}
-		for _, c := range a.sshClients {
-			client = c
-			break
+		var client *ssh.Client
+		if p.SSHServerID != "" {
+			client = a.sshClients[p.SSHServerID]
 		}
-	}
+		if client == nil {
+			if len(a.sshClients) == 0 {
+				logger.Warn("无可用SSH服务器用于HTTP代理，跳过启动", "proxy_name", p.Name)
+				a.log("WARN", fmt.Sprintf("无可用SSH服务器用于HTTP代理，跳过启动: %s", p.Name), p.ID)
+				continue
+			}
+			for _, c := range a.sshClients {
+				client = c
+				break
+			}
+		}
 
-	p := proxy.NewProxy(&a.config.HTTPProxy, client)
-	if err := p.Start(); err != nil {
-		logger.Error("HTTP代理启动失败", "error", err)
-		a.log("ERROR", fmt.Sprintf("启动HTTP代理失败: %v", err), "")
-		return nil
+		p_copy := p
+		proxyInstance := proxy.NewProxy(p_copy.ID, p_copy.Name, &p_copy, client)
+		if err := proxyInstance.Start(); err != nil {
+			logger.Error("HTTP代理启动失败", "proxy_name", p.Name, "error", err)
+			a.log("ERROR", fmt.Sprintf("启动HTTP代理失败: %s (%v)", p.Name, err), p.ID)
+			continue
+		}
+		a.httpProxies[p.ID] = proxyInstance
+		logger.Info("HTTP代理启动成功", "proxy_name", p.Name, "proxy_id", p.ID)
+		a.log("INFO", fmt.Sprintf("HTTP代理已启动: %s", p.Name), p.ID)
 	}
-	a.httpProxy = p
-	a.log("INFO", "HTTP代理已启动", "")
 	return nil
 }
 
@@ -326,9 +361,11 @@ func (a *App) checkStatus() {
 		}
 	}
 
-	if a.httpProxy != nil {
-		status := a.httpProxy.GetStatus()
+	for id, px := range a.httpProxies {
+		status := px.GetStatus()
 		logger.Info("HTTP代理状态",
+			"proxy_id", id,
+			"name", status.Name,
 			"status", status.Status,
 			"bytes_in", status.BytesIn,
 			"bytes_out", status.BytesOut,
@@ -353,10 +390,10 @@ func (a *App) Stop() {
 	}
 	a.forwarders = make(map[string]*forward.Forwarder)
 
-	if a.httpProxy != nil {
-		a.httpProxy.Stop()
-		a.httpProxy = nil
+	for _, px := range a.httpProxies {
+		px.Stop()
 	}
+	a.httpProxies = make(map[string]*proxy.Proxy)
 
 	for _, client := range a.sshClients {
 		client.Close()
@@ -382,19 +419,19 @@ func (a *App) GetConnections() []*types.ConnectionStatus {
 	for _, fw := range a.forwarders {
 		conns = append(conns, fw.GetStatus())
 	}
-	if a.httpProxy != nil {
-		conns = append(conns, a.httpProxy.GetStatus())
+	for _, px := range a.httpProxies {
+		conns = append(conns, px.GetStatus())
 	}
 	return sortConnections(conns)
 }
 
 func sortConnections(conns []*types.ConnectionStatus) []*types.ConnectionStatus {
 	var portForwards []*types.ConnectionStatus
-	var httpProxy *types.ConnectionStatus
+	var httpProxies []*types.ConnectionStatus
 
 	for _, conn := range conns {
 		if conn.Type == "http_proxy" {
-			httpProxy = conn
+			httpProxies = append(httpProxies, conn)
 		} else {
 			portForwards = append(portForwards, conn)
 		}
@@ -404,10 +441,12 @@ func sortConnections(conns []*types.ConnectionStatus) []*types.ConnectionStatus 
 		return portForwards[i].Name < portForwards[j].Name
 	})
 
+	sort.Slice(httpProxies, func(i, j int) bool {
+		return httpProxies[i].Name < httpProxies[j].Name
+	})
+
 	result := portForwards
-	if httpProxy != nil {
-		result = append(result, httpProxy)
-	}
+	result = append(result, httpProxies...)
 	return result
 }
 
@@ -595,40 +634,116 @@ func (a *App) DeletePortForward(id string) {
 	logger.Info("端口转发已删除", "name", forwardName, "id", id)
 }
 
-func (a *App) GetHTTPProxyConfig() *types.HTTPProxyConfig {
+func (a *App) GetHTTPProxies() []*types.HTTPProxy {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return &a.config.HTTPProxy
+	proxies := make([]*types.HTTPProxy, len(a.config.HTTPProxies))
+	for i := range a.config.HTTPProxies {
+		proxies[i] = &a.config.HTTPProxies[i]
+	}
+	sort.Slice(proxies, func(i, j int) bool {
+		return proxies[i].Name < proxies[j].Name
+	})
+	return proxies
 }
 
-func (a *App) UpdateHTTPProxyConfig(c *types.HTTPProxyConfig) {
+func (a *App) AddHTTPProxy(p *types.HTTPProxy) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	p.ID = fmt.Sprintf("proxy-%d", time.Now().UnixNano())
+	a.config.HTTPProxies = append(a.config.HTTPProxies, *p)
+	a.store.Save(a.config)
+	a.log("INFO", fmt.Sprintf("HTTP代理已添加: %s (%s)", p.Name, p.Listen), p.ID)
+	logger.Info("HTTP代理已添加", "name", p.Name, "id", p.ID, "enabled", p.Enabled, "listen", p.Listen, "ssh_server_id", p.SSHServerID)
+
+	if p.Enabled {
+		go a.startOneHTTPProxy(p)
+	}
+}
+
+func (a *App) startOneHTTPProxy(p *types.HTTPProxy) {
+	var client *ssh.Client
+	if p.SSHServerID != "" {
+		client = a.sshClients[p.SSHServerID]
+	}
+	if client == nil {
+		if len(a.sshClients) == 0 {
+			a.log("ERROR", "无可用SSH服务器", p.ID)
+			return
+		}
+		for _, c := range a.sshClients {
+			client = c
+			break
+		}
+	}
+	p_copy := *p
+	proxyInstance := proxy.NewProxy(p_copy.ID, p_copy.Name, &p_copy, client)
+	if err := proxyInstance.Start(); err != nil {
+		a.log("ERROR", fmt.Sprintf("启动失败: %v", err), p.ID)
+		return
+	}
+	a.mu.Lock()
+	a.httpProxies[p.ID] = proxyInstance
+	a.mu.Unlock()
+	a.log("INFO", fmt.Sprintf("HTTP代理已添加: %s", p.Name), p.ID)
+}
+
+func (a *App) UpdateHTTPProxy(p *types.HTTPProxy) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	oldEnabled := a.config.HTTPProxy.Enabled
-	a.config.HTTPProxy = *c
+	for i, proxy := range a.config.HTTPProxies {
+		if proxy.ID == p.ID {
+			oldEnabled := a.config.HTTPProxies[i].Enabled
+			a.config.HTTPProxies[i] = *p
 
-	if oldEnabled && !c.Enabled {
-		if a.httpProxy != nil {
-			a.httpProxy.Stop()
-			a.httpProxy = nil
+			if oldEnabled && !p.Enabled {
+				if px, ok := a.httpProxies[p.ID]; ok {
+					px.Stop()
+					delete(a.httpProxies, p.ID)
+				}
+			} else if !oldEnabled && p.Enabled {
+				go a.startOneHTTPProxy(p)
+			} else if p.Enabled {
+				if px, ok := a.httpProxies[p.ID]; ok {
+					px.Stop()
+				}
+				go a.startOneHTTPProxy(p)
+			}
+			break
 		}
-	} else if !oldEnabled && c.Enabled {
-		go a.startHTTPProxy()
-	} else if c.Enabled {
-		if a.httpProxy != nil {
-			a.httpProxy.Stop()
-		}
-		go a.startHTTPProxy()
 	}
-
 	a.store.Save(a.config)
-	status := "禁用"
-	if c.Enabled {
-		status = "启用"
+	a.log("INFO", fmt.Sprintf("HTTP代理已修改: %s (%s)", p.Name, p.Listen), p.ID)
+	logger.Info("HTTP代理已修改", "name", p.Name, "id", p.ID, "enabled", p.Enabled, "listen", p.Listen, "ssh_server_id", p.SSHServerID)
+}
+
+func (a *App) DeleteHTTPProxy(id string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	var proxyName string
+	for _, p := range a.config.HTTPProxies {
+		if p.ID == id {
+			proxyName = p.Name
+			break
+		}
 	}
-	a.log("INFO", fmt.Sprintf("HTTP代理配置已更新: %s (监听: %s)", status, c.Listen), "")
-	logger.Info("HTTP代理配置已更新", "enabled", c.Enabled, "listen", c.Listen, "ssh_server_id", c.SSHServerID)
+
+	if px, ok := a.httpProxies[id]; ok {
+		px.Stop()
+		delete(a.httpProxies, id)
+	}
+
+	for i, p := range a.config.HTTPProxies {
+		if p.ID == id {
+			a.config.HTTPProxies = append(a.config.HTTPProxies[:i], a.config.HTTPProxies[i+1:]...)
+			break
+		}
+	}
+	a.store.Save(a.config)
+	a.log("INFO", fmt.Sprintf("HTTP代理已删除: %s", proxyName), id)
+	logger.Info("HTTP代理已删除", "name", proxyName, "id", id)
 }
 
 func (a *App) GetServerConfig() *types.ServerConfig {
@@ -679,7 +794,7 @@ func main() {
 				},
 				SSHServers:   []types.SSHServer{},
 				PortForwards: []types.PortForward{},
-				HTTPProxy:    types.HTTPProxyConfig{Enabled: false},
+				HTTPProxies:  []types.HTTPProxy{},
 			}
 			app.config = cfg
 			app.store.Save(cfg)

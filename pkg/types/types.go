@@ -12,8 +12,8 @@ type Config struct {
 	SSHServers []SSHServer `yaml:"ssh_servers" json:"ssh_servers" toml:"ssh_servers"`
 	// PortForwards 端口转发规则列表，定义所有端口转发配置
 	PortForwards []PortForward `yaml:"port_forwards" json:"port_forwards" toml:"port_forwards"`
-	// HTTPProxy HTTP代理服务配置
-	HTTPProxy HTTPProxyConfig `yaml:"http_proxy" json:"http_proxy" toml:"http_proxy"`
+	// HTTPProxies HTTP代理服务配置列表，支持多个代理实例
+	HTTPProxies []HTTPProxy `yaml:"http_proxies" json:"http_proxies" toml:"http_proxies"`
 }
 
 // ServerConfig 配置Web管理界面的服务端参数
@@ -88,9 +88,15 @@ type PortForward struct {
 	Enabled bool `yaml:"enabled" json:"enabled" toml:"enabled"`
 }
 
-// HTTPProxyConfig 定义HTTP代理服务配置
+// HTTPProxy 定义单个HTTP代理服务配置
 // 提供标准的HTTP代理服务，通过SSH隧道转发HTTP/HTTPS流量
-type HTTPProxyConfig struct {
+type HTTPProxy struct {
+	// ID 代理的唯一标识符
+	// 用于API操作中的引用
+	ID string `yaml:"id" json:"id" toml:"id"`
+	// Name 代理的显示名称
+	// 用于在Web界面中显示，便于用户识别
+	Name string `yaml:"name" json:"name" toml:"name"`
 	// Enabled 是否启用HTTP代理服务
 	Enabled bool `yaml:"enabled" json:"enabled" toml:"enabled"`
 	// Listen 代理服务的监听地址和端口
@@ -101,6 +107,10 @@ type HTTPProxyConfig struct {
 	// 如果留空，将自动使用第一个可用的SSH服务器
 	SSHServerID string `yaml:"ssh_server_id" json:"ssh_server_id" toml:"ssh_server_id"`
 }
+
+// HTTPProxyConfig 旧的HTTP代理配置类型，用于向后兼容
+// Deprecated: 请使用 HTTPProxy 类型
+type HTTPProxyConfig = HTTPProxy
 
 // ConnectionStatus 表示活动连接的状态信息
 // 用于在Web界面中展示当前所有活动连接的实时状态

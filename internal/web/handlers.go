@@ -155,18 +155,27 @@ func (h *Handler) apiPortForwards(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) apiHTTPProxy(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		json.NewEncoder(w).Encode(h.manager.GetHTTPProxyConfig())
-		return
-	}
-	if r.Method == http.MethodPut {
-		var cfg types.HTTPProxyConfig
-		json.NewDecoder(r.Body).Decode(&cfg)
-		h.manager.UpdateHTTPProxyConfig(&cfg)
+	switch r.Method {
+	case http.MethodGet:
+		json.NewEncoder(w).Encode(h.manager.GetHTTPProxies())
+	case http.MethodPost:
+		var proxy types.HTTPProxy
+		json.NewDecoder(r.Body).Decode(&proxy)
+		h.manager.AddHTTPProxy(&proxy)
+		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-		return
+	case http.MethodPut:
+		var proxy types.HTTPProxy
+		json.NewDecoder(r.Body).Decode(&proxy)
+		h.manager.UpdateHTTPProxy(&proxy)
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	case http.MethodDelete:
+		id := r.URL.Query().Get("id")
+		h.manager.DeleteHTTPProxy(id)
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
-	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
 func (h *Handler) apiRestart(w http.ResponseWriter, r *http.Request) {
@@ -175,12 +184,19 @@ func (h *Handler) apiRestart(w http.ResponseWriter, r *http.Request) {
 
 		servers := h.manager.GetSSHServers()
 		forwards := h.manager.GetPortForwards()
-		proxyCfg := h.manager.GetHTTPProxyConfig()
+		proxies := h.manager.GetHTTPProxies()
 
 		enabledForwards := 0
 		for _, f := range forwards {
 			if f.Enabled {
 				enabledForwards++
+			}
+		}
+
+		enabledProxies := 0
+		for _, p := range proxies {
+			if p.Enabled {
+				enabledProxies++
 			}
 		}
 
@@ -194,8 +210,9 @@ func (h *Handler) apiRestart(w http.ResponseWriter, r *http.Request) {
 				"total":   len(forwards),
 				"enabled": enabledForwards,
 			},
-			"http_proxy": map[string]interface{}{
-				"enabled": proxyCfg.Enabled,
+			"http_proxies": map[string]interface{}{
+				"total":   len(proxies),
+				"enabled": enabledProxies,
 			},
 		}
 
@@ -216,7 +233,9 @@ type Manager interface {
 	AddPortForward(p *types.PortForward)
 	UpdatePortForward(p *types.PortForward)
 	DeletePortForward(id string)
-	GetHTTPProxyConfig() *types.HTTPProxyConfig
-	UpdateHTTPProxyConfig(c *types.HTTPProxyConfig)
+	GetHTTPProxies() []*types.HTTPProxy
+	AddHTTPProxy(p *types.HTTPProxy)
+	UpdateHTTPProxy(p *types.HTTPProxy)
+	DeleteHTTPProxy(id string)
 	Restart()
 }
