@@ -225,7 +225,8 @@ func (a *App) startPortForwards() error {
 			a.log("ERROR", fmt.Sprintf("未找到用于端口转发 %s 的SSH服务器", f.Name), f.ID)
 			continue
 		}
-		fw := forward.NewForwarder(&f, client)
+		f_copy := f
+		fw := forward.NewForwarder(&f_copy, client)
 		if err := fw.Start(); err != nil {
 			logger.Error("端口转发启动失败",
 				"forward_name", f.Name,
@@ -497,7 +498,8 @@ func (a *App) startOnePortForward(p *types.PortForward) {
 		a.log("ERROR", "未找到SSH服务器", p.ID)
 		return
 	}
-	fw := forward.NewForwarder(p, client)
+	f_copy := *p
+	fw := forward.NewForwarder(&f_copy, client)
 	if err := fw.Start(); err != nil {
 		a.log("ERROR", fmt.Sprintf("启动失败: %v", err), p.ID)
 		return
