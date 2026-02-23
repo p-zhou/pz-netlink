@@ -34,7 +34,7 @@
                         <th>SSH服务器</th>
                         <th>本地</th>
                         <th>远程</th>
-                        <th>状态</th>
+                        <th class="no-wrap">状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -121,7 +121,7 @@
                     <td>${server.name || '未知'}</td>
                     <td>${f.listen_host}:${f.listen_port}</td>
                     <td>${f.remote_host}:${f.remote_port}</td>
-                    <td>${f.enabled ? '已启用' : '已禁用'}</td>
+                    <td class="no-wrap">${f.enabled ? '已启用' : '已禁用'}</td>
                     <td class="actions">
                         <button class="btn btn-edit" onclick="editForward('${f.id}', '${f.name}', '${f.ssh_server_id}', '${f.listen_host}', ${f.listen_port}, '${f.remote_host}', ${f.remote_port}, ${f.enabled})">编辑</button>
                         <button class="btn btn-danger" onclick="deleteForward('${f.id}')">删除</button>

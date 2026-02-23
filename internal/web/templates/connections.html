@@ -31,10 +31,10 @@
                 <thead>
                     <tr>
                         <th>名称</th>
-                        <th>类型</th>
+                        <th class="no-wrap">类型</th>
                         <th>本地地址</th>
                         <th>远程地址</th>
-                        <th>状态</th>
+                        <th class="no-wrap">状态</th>
                         <th>连接数</th>
                         <th>接收</th>
                         <th>发送</th>
@@ -68,10 +68,10 @@
             tbody.innerHTML = connsList.map(c => `
                 <tr>
                     <td>${c.name}</td>
-                    <td>${c.type}</td>
+                    <td class="no-wrap">${c.type}</td>
                     <td>${c.local_addr}</td>
                     <td>${c.remote_addr}</td>
-                    <td class="status-${c.status}">${c.status}</td>
+                    <td class="status-${c.status} no-wrap">${c.status}</td>
                     <td>${c.active_connections || 0}</td>
                     <td>${formatBytes(c.bytes_in)}</td>
                     <td>${formatBytes(c.bytes_out)}</td>
