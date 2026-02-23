@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -384,7 +385,30 @@ func (a *App) GetConnections() []*types.ConnectionStatus {
 	if a.httpProxy != nil {
 		conns = append(conns, a.httpProxy.GetStatus())
 	}
-	return conns
+	return sortConnections(conns)
+}
+
+func sortConnections(conns []*types.ConnectionStatus) []*types.ConnectionStatus {
+	var portForwards []*types.ConnectionStatus
+	var httpProxy *types.ConnectionStatus
+
+	for _, conn := range conns {
+		if conn.Type == "http_proxy" {
+			httpProxy = conn
+		} else {
+			portForwards = append(portForwards, conn)
+		}
+	}
+
+	sort.Slice(portForwards, func(i, j int) bool {
+		return portForwards[i].Name < portForwards[j].Name
+	})
+
+	result := portForwards
+	if httpProxy != nil {
+		result = append(result, httpProxy)
+	}
+	return result
 }
 
 func (a *App) GetLogs() []*types.LogEntry {
@@ -475,6 +499,9 @@ func (a *App) GetPortForwards() []*types.PortForward {
 	for i := range a.config.PortForwards {
 		forwards[i] = &a.config.PortForwards[i]
 	}
+	sort.Slice(forwards, func(i, j int) bool {
+		return forwards[i].Name < forwards[j].Name
+	})
 	return forwards
 }
 
