@@ -100,3 +100,7 @@ func (s *Store) LoadRaw() (*legacyConfig, error) {
 
 	return cfg, nil
 }
+
+func (s *Store) GetPath() string {
+	return s.path
+}

@@ -54,7 +54,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/logs", h.apiLogs)
 	mux.HandleFunc("/api/ssh-servers", h.apiSSHServers)
 	mux.HandleFunc("/api/port-forwards", h.apiPortForwards)
-	mux.HandleFunc("/api/http-proxy", h.apiHTTPProxy)
+	mux.HandleFunc("/api/http-proxies", h.apiHTTPProxy)
 	mux.HandleFunc("/api/restart", h.apiRestart)
 	mux.HandleFunc("/test", h.test)
 }

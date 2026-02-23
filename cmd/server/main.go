@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"pz-netlink/internal/forward"
 	"pz-netlink/internal/logger"
 	"pz-netlink/internal/proxy"
@@ -65,38 +66,82 @@ func (a *App) LoadConfig() error {
 		return err
 	}
 
-	a.migrateHTTPProxyConfig(cfg)
+	logger.Info("加载配置完成", "http_proxies_count", len(cfg.HTTPProxies))
+
+	if len(cfg.HTTPProxies) == 0 {
+		logger.Info("检测到旧版HTTP代理配置格式，尝试迁移")
+		if migratedCfg := a.migrateHTTPProxyConfig(); migratedCfg != nil {
+			cfg.HTTPProxies = *migratedCfg
+			if saveErr := a.store.Save(cfg); saveErr != nil {
+				logger.Error("保存迁移后的配置失败", "error", saveErr)
+			} else {
+				logger.Info("已保存迁移后的配置", "proxies_count", len(cfg.HTTPProxies))
+			}
+		} else {
+			logger.Info("未找到需要迁移的HTTP代理配置")
+		}
+	}
 
 	a.config = cfg
 	a.resolveEnvVars()
 	return nil
 }
 
-func (a *App) migrateHTTPProxyConfig(cfg *types.Config) {
-	if len(cfg.HTTPProxies) > 0 {
-		return
-	}
-	legacyCfg, err := a.store.LoadRaw()
+func (a *App) migrateHTTPProxyConfig() *[]types.HTTPProxy {
+	configPath := a.store.GetPath()
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return
+		logger.Error("读取配置文件失败", "error", err)
+		return nil
 	}
-	if legacyCfg == nil {
-		return
+
+	var rawCfg map[string]interface{}
+	if err := toml.Unmarshal(data, &rawCfg); err != nil {
+		logger.Error("解析配置文件失败", "error", err)
+		return nil
 	}
-	if !legacyCfg.HTTPProxy.Enabled && legacyCfg.HTTPProxy.Listen == "" {
-		return
+
+	httpProxyData, ok := rawCfg["http_proxy"].(map[string]interface{})
+	if !ok {
+		logger.Info("配置文件中未找到[http_proxy]配置")
+		return nil
 	}
+
+	logger.Info("找到旧版http_proxy配置", "data", httpProxyData)
+
+	enabled := false
+	if e, ok := httpProxyData["enabled"].(bool); ok {
+		enabled = e
+	}
+
+	listen := ""
+	if l, ok := httpProxyData["listen"].(string); ok {
+		listen = l
+	}
+
+	sshServerID := ""
+	if s, ok := httpProxyData["ssh_server_id"].(string); ok {
+		sshServerID = s
+	}
+
+	if !enabled && listen == "" {
+		logger.Info("HTTP代理配置为空，跳过迁移", "enabled", enabled, "listen", listen)
+		return nil
+	}
+
 	proxyID := fmt.Sprintf("proxy-%d", time.Now().UnixNano())
-	cfg.HTTPProxies = []types.HTTPProxy{
+	proxies := []types.HTTPProxy{
 		{
 			ID:          proxyID,
 			Name:        "HTTP代理",
-			Enabled:     legacyCfg.HTTPProxy.Enabled,
-			Listen:      legacyCfg.HTTPProxy.Listen,
-			SSHServerID: legacyCfg.HTTPProxy.SSHServerID,
+			Enabled:     enabled,
+			Listen:      listen,
+			SSHServerID: sshServerID,
 		},
 	}
-	logger.Info("已迁移旧版HTTP代理配置到新版多代理格式", "listen", legacyCfg.HTTPProxy.Listen)
+
+	logger.Info("已迁移旧版HTTP代理配置到新版多代理格式", "listen", listen, "enabled", enabled, "ssh_server_id", sshServerID)
+	return &proxies
 }
 
 func (a *App) SaveConfig() error {
