@@ -35,9 +35,9 @@
                         <th>本地地址</th>
                         <th>远程地址</th>
                         <th class="no-wrap">状态</th>
-                        <th>连接数</th>
-                        <th>接收</th>
-                        <th>发送</th>
+                        <th class="text-right">连接数</th>
+                        <th class="text-right">接收</th>
+                        <th class="text-right">发送</th>
                         <th>启动时间</th>
                     </tr>
                 </thead>
@@ -72,9 +72,9 @@
                     <td>${c.local_addr}</td>
                     <td>${c.remote_addr}</td>
                     <td class="status-${c.status} no-wrap">${c.status}</td>
-                    <td>${c.active_connections || 0}</td>
-                    <td>${formatBytes(c.bytes_in)}</td>
-                    <td>${formatBytes(c.bytes_out)}</td>
+                    <td class="text-right">${c.active_connections || 0}</td>
+                    <td class="text-right">${formatBytes(c.bytes_in)}</td>
+                    <td class="text-right">${formatBytes(c.bytes_out)}</td>
                     <td>${formatTime(c.started_at)}</td>
                 </tr>
             `).join('');
