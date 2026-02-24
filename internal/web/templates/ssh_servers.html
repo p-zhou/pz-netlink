@@ -181,25 +181,11 @@
             loadServers();
             if(editingId) {
                 if(await showConfirm('SSH服务器配置已修改，需要重启服务器以使修改生效。是否现在重启？')) {
-                    const res = await fetch('/api/restart', { method: 'POST' }).then(r => r.json());
-                    const sshTotal = res.ssh_servers.total;
-                    const sshEnabled = res.ssh_servers.enabled;
-                    const fwTotal = res.port_forwards.total;
-                    const fwEnabled = res.port_forwards.enabled;
-                    const proxyTotal = res.http_proxies.total;
-                    const proxyEnabled = res.http_proxies.enabled;
-                    showAlert(`重启完成\n\n应用启动时间：${res.app_start_time}\n最后重启时间：${res.last_restart_time}\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：共${proxyTotal}个，启用${proxyEnabled}个`);
+                    await performRestart();
                 }
             } else {
                 if(await showConfirm('SSH服务器已添加，需要重启服务器以使修改生效。是否现在重启？')) {
-                    const res = await fetch('/api/restart', { method: 'POST' }).then(r => r.json());
-                    const sshTotal = res.ssh_servers.total;
-                    const sshEnabled = res.ssh_servers.enabled;
-                    const fwTotal = res.port_forwards.total;
-                    const fwEnabled = res.port_forwards.enabled;
-                    const proxyTotal = res.http_proxies.total;
-                    const proxyEnabled = res.http_proxies.enabled;
-                    showAlert(`重启完成\n\n应用启动时间：${res.app_start_time}\n最后重启时间：${res.last_restart_time}\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：共${proxyTotal}个，启用${proxyEnabled}个`);
+                    await performRestart();
                 }
             }
         };
@@ -208,14 +194,7 @@
                 await fetch('/api/ssh-servers?id=' + id, { method: 'DELETE' });
                 loadServers();
                 if(await showConfirm('SSH服务器已删除，需要重启服务器以使修改生效。是否现在重启？')) {
-                    const res = await fetch('/api/restart', { method: 'POST' }).then(r => r.json());
-                    const sshTotal = res.ssh_servers.total;
-                    const sshEnabled = res.ssh_servers.enabled;
-                    const fwTotal = res.port_forwards.total;
-                    const fwEnabled = res.port_forwards.enabled;
-                    const proxyTotal = res.http_proxies.total;
-                    const proxyEnabled = res.http_proxies.enabled;
-                    showAlert(`重启完成\n\n应用启动时间：${res.app_start_time}\n最后重启时间：${res.last_restart_time}\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：共${proxyTotal}个，启用${proxyEnabled}个`);
+                    await performRestart();
                 }
             }
         }

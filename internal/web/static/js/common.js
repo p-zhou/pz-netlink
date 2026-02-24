@@ -54,4 +54,15 @@ function closeAlert() {
     document.getElementById('alertDialog').close();
 }
 
+async function performRestart() {
+    const res = await fetch('/api/restart', { method: 'POST' }).then(r => r.json());
+    const sshTotal = res.ssh_servers.total;
+    const sshEnabled = res.ssh_servers.enabled;
+    const fwTotal = res.port_forwards.total;
+    const fwEnabled = res.port_forwards.enabled;
+    const proxyTotal = res.http_proxies.total;
+    const proxyEnabled = res.http_proxies.enabled;
+    showAlert(`重启完成\n\n应用启动时间：${res.app_start_time}\n最后重启时间：${res.last_restart_time}\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：共${proxyTotal}个，启用${proxyEnabled}个`);
+}
+
 document.addEventListener('DOMContentLoaded', initDialogs);
