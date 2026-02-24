@@ -134,9 +134,10 @@
                     <td class="no-wrap">${s.auth_type}</td>
                     <td class="no-wrap ${statusClass}">${statusText}${errorIcon}</td>
                     <td class="actions">
-                        <button class="btn btn-test" onclick="testServer('${s.id}', this)">测试</button>
                         <button class="btn btn-edit" onclick="editServer('${s.id}', '${s.name}', '${s.host}', ${s.port}, '${s.username}', '${s.auth_type}', '${s.private_key||''}', ${s.keep_alive_interval}, '${s.password}')">编辑</button>
                         <button class="btn btn-danger" onclick="deleteServer('${s.id}')">删除</button>
+                        <span class="btn-separator">|</span>
+                        <button class="btn btn-test" onclick="testServer('${s.id}', this)">测试</button>
                     </td>
                 </tr>
             `}).join('');
