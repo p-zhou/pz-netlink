@@ -29,34 +29,38 @@ import (
 )
 
 type App struct {
-	store       *storage.Store
-	config      *types.Config
-	mux         *http.ServeMux
-	handler     *web.Handler
-	httpHandler http.Handler
-	httpServer  *http.Server
-	forwarders  map[string]*forward.Forwarder
-	httpProxies map[string]*proxy.Proxy
-	sshClients  map[string]*ssh.Client
-	logs        []*types.LogEntry
-	logMu       sync.RWMutex
-	mu          sync.RWMutex
-	ctx         context.Context
-	cancel      context.CancelFunc
-	statusCheck *time.Ticker
+	store           *storage.Store
+	config          *types.Config
+	mux             *http.ServeMux
+	handler         *web.Handler
+	httpHandler     http.Handler
+	httpServer      *http.Server
+	forwarders      map[string]*forward.Forwarder
+	httpProxies     map[string]*proxy.Proxy
+	sshClients      map[string]*ssh.Client
+	logs            []*types.LogEntry
+	logMu           sync.RWMutex
+	mu              sync.RWMutex
+	ctx             context.Context
+	cancel          context.CancelFunc
+	statusCheck     *time.Ticker
+	appStartTime    time.Time
+	lastRestartTime time.Time
 }
 
 func NewApp(configPath string) *App {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &App{
-		store:       storage.New(configPath),
-		mux:         http.NewServeMux(),
-		forwarders:  make(map[string]*forward.Forwarder),
-		httpProxies: make(map[string]*proxy.Proxy),
-		sshClients:  make(map[string]*ssh.Client),
-		ctx:         ctx,
-		cancel:      cancel,
-		httpServer:  &http.Server{},
+		store:           storage.New(configPath),
+		mux:             http.NewServeMux(),
+		forwarders:      make(map[string]*forward.Forwarder),
+		httpProxies:     make(map[string]*proxy.Proxy),
+		sshClients:      make(map[string]*ssh.Client),
+		ctx:             ctx,
+		cancel:          cancel,
+		httpServer:      &http.Server{},
+		appStartTime:    time.Now(),
+		lastRestartTime: time.Now(),
 	}
 }
 
@@ -373,7 +377,14 @@ func (a *App) startStatusCheck() {
 }
 
 func (a *App) checkStatus() {
+	a.mu.RLock()
+	appStartTime := a.appStartTime
+	lastRestartTime := a.lastRestartTime
+	a.mu.RUnlock()
+
 	logger.Info("===== 状态检查 =====")
+	logger.Info("应用启动时间", "time", appStartTime.Format("2006-01-02 15:04:05"))
+	logger.Info("最后重启时间", "time", lastRestartTime.Format("2006-01-02 15:04:05"))
 
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -450,6 +461,9 @@ func (a *App) Stop() {
 }
 
 func (a *App) Restart() {
+	a.mu.Lock()
+	a.lastRestartTime = time.Now()
+	a.mu.Unlock()
 	a.Stop()
 	time.Sleep(time.Second)
 	a.LoadConfig()
@@ -793,6 +807,18 @@ func (a *App) DeleteHTTPProxy(id string) {
 
 func (a *App) GetServerConfig() *types.ServerConfig {
 	return &a.config.Server
+}
+
+func (a *App) GetAppStartTime() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.appStartTime.Format("2006-01-02 15:04:05")
+}
+
+func (a *App) GetLastRestartTime() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.lastRestartTime.Format("2006-01-02 15:04:05")
 }
 
 func (a *App) basicAuthMiddleware(next http.Handler) http.Handler {

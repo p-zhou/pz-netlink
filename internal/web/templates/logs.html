@@ -30,6 +30,18 @@
                     <button class="btn btn-refresh" onclick="loadLogs()">刷新</button>
                 </div>
             </div>
+            <div id="statusPanel" class="status-panel" style="margin-bottom:1rem; padding:1rem; background:#f7fafc; border-radius:0.5rem; border-left:4px solid #3182ce;">
+                <div style="display:flex; gap:2rem;">
+                    <div>
+                        <strong>应用启动时间：</strong>
+                        <span id="appStartTime">加载中...</span>
+                    </div>
+                    <div>
+                        <strong>最后重启时间：</strong>
+                        <span id="lastRestartTime">加载中...</span>
+                    </div>
+                </div>
+            </div>
             <div id="logList">
                 <div style="text-align:center; padding:2rem;">加载中...</div>
             </div>
@@ -63,8 +75,15 @@
                 </div>
             `).join('');
         }
+        async function loadStatus() {
+            const status = await fetch('/api/status').then(r => r.json());
+            document.getElementById('appStartTime').textContent = status.app_start_time;
+            document.getElementById('lastRestartTime').textContent = status.last_restart_time;
+        }
         loadLogs();
+        loadStatus();
         setInterval(loadLogs, 5000);
+        setInterval(loadStatus, 5000);
     </script>
 </body>
 </html>

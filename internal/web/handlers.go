@@ -56,6 +56,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/port-forwards", h.apiPortForwards)
 	mux.HandleFunc("/api/http-proxies", h.apiHTTPProxy)
 	mux.HandleFunc("/api/restart", h.apiRestart)
+	mux.HandleFunc("/api/status", h.apiStatus)
 	mux.HandleFunc("/test", h.test)
 }
 
@@ -81,6 +82,14 @@ func (h *Handler) portForwards(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) httpProxy(w http.ResponseWriter, r *http.Request) {
 	h.templates.ExecuteTemplate(w, "http_proxy.html", nil)
+}
+
+func (h *Handler) apiStatus(w http.ResponseWriter, r *http.Request) {
+	result := map[string]interface{}{
+		"app_start_time":    h.manager.GetAppStartTime(),
+		"last_restart_time": h.manager.GetLastRestartTime(),
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +210,9 @@ func (h *Handler) apiRestart(w http.ResponseWriter, r *http.Request) {
 		}
 
 		result := map[string]interface{}{
-			"status": "success",
+			"status":            "success",
+			"app_start_time":    h.manager.GetAppStartTime(),
+			"last_restart_time": h.manager.GetLastRestartTime(),
 			"ssh_servers": map[string]interface{}{
 				"total":   len(servers),
 				"enabled": len(servers),
@@ -238,4 +249,6 @@ type Manager interface {
 	UpdateHTTPProxy(p *types.HTTPProxy)
 	DeleteHTTPProxy(id string)
 	Restart()
+	GetAppStartTime() string
+	GetLastRestartTime() string
 }
