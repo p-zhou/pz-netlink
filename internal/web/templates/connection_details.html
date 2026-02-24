@@ -29,36 +29,31 @@
                 <button class="btn btn-secondary" onclick="window.close()">关闭</button>
             </div>
             <div style="margin-bottom:1.5rem; padding:1rem; background:#f5f5f5; border-radius:4px;">
-                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0.5rem 1rem; align-items:center;">
-                    <div><strong>类型:</strong></div>
-                    <div>{{if eq .Connection.Type "port_forward"}}端口转发{{else if eq .Connection.Type "http_proxy"}}HTTP代理{{else}}{{.Connection.Type}}{{end}}</div>
-                    <div></div>
-
-                    <div><strong>本地地址:</strong></div>
-                    <div>{{.Connection.LocalAddr}}</div>
-                    <div></div>
-
-                    {{if ne .Connection.RemoteAddr ""}}
-                    <div><strong>远程地址:</strong></div>
-                    <div>{{.Connection.RemoteAddr}}</div>
-                    <div></div>
-                    {{end}}
-
-                    <div><strong>状态:</strong></div>
-                    <div><span class="status-{{.Connection.Status}}">{{if eq .Connection.Status "connected"}}已连接{{else if eq .Connection.Status "disconnected"}}已断开{{else if eq .Connection.Status "invalid"}}无效{{else}}{{.Connection.Status}}{{end}}</span></div>
-                    <div></div>
-
-                    <div><strong>接收:</strong></div>
-                    <div>{{formatBytes .Connection.BytesIn}}</div>
-                    <div></div>
-
-                    <div><strong>发送:</strong></div>
-                    <div>{{formatBytes .Connection.BytesOut}}</div>
-                    <div></div>
-
-                    <div><strong>启动时间:</strong></div>
-                    <div>{{formatTime .Connection.StartedAt}}</div>
-                    <div></div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1rem; align-items:center;">
+                    <div>
+                        <div><strong>类型:</strong></div>
+                        <div>{{if eq .Connection.Type "port_forward"}}端口转发{{else if eq .Connection.Type "http_proxy"}}HTTP代理{{else}}{{.Connection.Type}}{{end}}</div>
+                    </div>
+                    <div>
+                        <div><strong>本地地址:</strong></div>
+                        <div>{{.Connection.LocalAddr}}</div>
+                    </div>
+                    <div>
+                        <div><strong>远程地址:</strong></div>
+                        <div>{{if ne .Connection.RemoteAddr ""}}{{.Connection.RemoteAddr}}{{else}}-{{end}}</div>
+                    </div>
+                    <div>
+                        <div><strong>状态:</strong></div>
+                        <div><span class="status-{{.Connection.Status}}">{{if eq .Connection.Status "connected"}}已连接{{else if eq .Connection.Status "disconnected"}}已断开{{else if eq .Connection.Status "invalid"}}无效{{else}}{{.Connection.Status}}{{end}}</span></div>
+                    </div>
+                    <div>
+                        <div><strong>接收:</strong></div>
+                        <div>{{formatBytes .Connection.BytesIn}}</div>
+                    </div>
+                    <div>
+                        <div><strong>发送:</strong></div>
+                        <div>{{formatBytes .Connection.BytesOut}}</div>
+                    </div>
                 </div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
