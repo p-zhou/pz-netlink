@@ -603,11 +603,51 @@ func (a *App) GetConnections() []*types.ConnectionStatus {
 	var conns []*types.ConnectionStatus
 
 	for _, fw := range a.forwarders {
-		conns = append(conns, fw.GetStatus())
+		status := fw.GetStatus()
+		conns = append(conns, status)
 	}
 
 	for _, px := range a.httpProxies {
-		conns = append(conns, px.GetStatus())
+		status := px.GetStatus()
+		conns = append(conns, status)
+	}
+
+	for _, conn := range conns {
+		var sshServerID string
+		var serverName string
+
+		if conn.Type == "port_forward" {
+			for _, f := range a.config.PortForwards {
+				if f.ID == conn.ID {
+					sshServerID = f.SSHServerID
+					break
+				}
+			}
+		} else if conn.Type == "http_proxy" {
+			for _, p := range a.config.HTTPProxies {
+				if p.ID == conn.ID {
+					sshServerID = p.SSHServerID
+					if sshServerID == "" {
+						sshServerID = a.getFirstValidSSHServerID()
+					}
+					break
+				}
+			}
+		}
+
+		if sshServerID != "" && !a.sshServerValid[sshServerID] {
+			for _, s := range a.config.SSHServers {
+				if s.ID == sshServerID {
+					serverName = s.Name
+					break
+				}
+			}
+			if serverName == "" {
+				serverName = "默认服务器"
+			}
+			conn.Status = "无效"
+			conn.LastError = fmt.Sprintf("SSH服务器无效: %s", serverName)
+		}
 	}
 
 	for _, f := range a.config.PortForwards {
