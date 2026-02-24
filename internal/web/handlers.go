@@ -57,6 +57,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/http-proxies", h.apiHTTPProxy)
 	mux.HandleFunc("/api/restart", h.apiRestart)
 	mux.HandleFunc("/api/status", h.apiStatus)
+	mux.HandleFunc("/api/ssh-test", h.apiSSHTest)
 	mux.HandleFunc("/test", h.test)
 }
 
@@ -233,6 +234,36 @@ func (h *Handler) apiRestart(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
+func (h *Handler) apiSSHTest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id parameter", http.StatusBadRequest)
+		return
+	}
+
+	valid, errorMsg, err := h.manager.TestSSHServer(id)
+	if err != nil {
+		result := map[string]interface{}{
+			"valid":   false,
+			"message": errorMsg,
+			"error":   err.Error(),
+		}
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+
+	result := map[string]interface{}{
+		"valid":   valid,
+		"message": errorMsg,
+	}
+	json.NewEncoder(w).Encode(result)
+}
+
 type Manager interface {
 	GetConnections() []*types.ConnectionStatus
 	GetLogs() []*types.LogEntry
@@ -240,6 +271,7 @@ type Manager interface {
 	AddSSHServer(s *types.SSHServer)
 	UpdateSSHServer(s *types.SSHServer)
 	DeleteSSHServer(id string)
+	TestSSHServer(id string) (bool, string, error)
 	GetPortForwards() []*types.PortForward
 	AddPortForward(p *types.PortForward)
 	UpdatePortForward(p *types.PortForward)

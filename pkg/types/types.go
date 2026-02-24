@@ -58,6 +58,17 @@ type SSHServer struct {
 	// 设置为0表示禁用保活机制
 	// 建议设置为30秒以防止长时间空闲连接被断开
 	KeepAliveInterval int `yaml:"keep_alive_interval" json:"keep_alive_interval" toml:"keep_alive_interval"`
+	// Valid SSH服务器是否有效
+	// true: 服务器有效且可连接
+	// false: 服务器无效或无法连接
+	// 此字段不保存到配置文件，仅用于运行时状态
+	Valid bool `yaml:"-" json:"valid" toml:"-"`
+	// LastCheckedTime 最后一次有效性检查时间
+	// 此字段不保存到配置文件，仅用于运行时状态
+	LastCheckedTime time.Time `yaml:"-" json:"last_checked_time" toml:"-"`
+	// LastValidationError 最后一次验证错误信息
+	// 此字段不保存到配置文件，仅用于运行时状态
+	LastValidationError string `yaml:"-" json:"last_validation_error" toml:"-"`
 }
 
 // PortForward 定义端口转发规则

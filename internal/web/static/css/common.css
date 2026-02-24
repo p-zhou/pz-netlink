@@ -27,6 +27,8 @@ th { background: #f8fafc; font-weight: 600; color: #475569; white-space: nowrap;
 .status-connected { color: #16a34a; }
 .status-disconnected { color: #dc2626; }
 .status-error { color: #ea580c; }
+.status-invalid { color: #dc2626; }
+.status-unknown { color: #64748b; }
 .actions { display: flex; gap: 0.5rem; min-width: fit-content; white-space: nowrap; }
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; margin-bottom: 0.5rem; color: #475569; font-size: 0.875rem; }

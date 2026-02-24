@@ -154,6 +154,62 @@ func (c *Client) IsConnected() bool {
 	return c.client != nil
 }
 
+func (c *Client) TestConnection() error {
+	logger.Info("开始测试SSH连接",
+		"server_name", c.config.Name,
+		"server_id", c.config.ID,
+		"host", c.config.Host,
+		"port", c.config.Port,
+	)
+
+	auth := []ssh.AuthMethod{}
+	if c.config.AuthType == "password" {
+		auth = append(auth, ssh.Password(c.config.Password))
+	} else if c.config.AuthType == "key" && c.config.PrivateKey != "" {
+		key, err := loadPrivateKey(c.config.PrivateKey)
+		if err != nil {
+			logger.Error("SSH测试：密钥加载失败",
+				"server_name", c.config.Name,
+				"server_id", c.config.ID,
+				"key_path", c.config.PrivateKey,
+				"error", err,
+			)
+			return err
+		}
+		auth = append(auth, ssh.PublicKeys(key))
+	}
+
+	sshConfig := &ssh.ClientConfig{
+		User:            c.config.Username,
+		Auth:            auth,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         10 * time.Second,
+	}
+
+	addr := fmt.Sprintf("%s:%d", c.config.Host, c.config.Port)
+	startTime := time.Now()
+	testClient, err := ssh.Dial("tcp", addr, sshConfig)
+	if err != nil {
+		logger.Error("SSH测试：连接失败",
+			"server_name", c.config.Name,
+			"server_id", c.config.ID,
+			"addr", addr,
+			"error", err,
+			"duration", time.Since(startTime).String(),
+		)
+		return err
+	}
+	testClient.Close()
+
+	logger.Info("SSH测试：连接成功",
+		"server_name", c.config.Name,
+		"server_id", c.config.ID,
+		"addr", addr,
+		"duration", time.Since(startTime).String(),
+	)
+	return nil
+}
+
 func loadPrivateKey(path string) (ssh.Signer, error) {
 	keyData, err := os.ReadFile(path)
 	if err != nil {

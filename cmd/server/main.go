@@ -41,6 +41,8 @@ type App struct {
 	forwarders      map[string]*forward.Forwarder
 	httpProxies     map[string]*proxy.Proxy
 	sshClients      map[string]*ssh.Client
+	sshServerValid  map[string]bool
+	sshServerErrors map[string]string
 	logs            []*types.LogEntry
 	logMu           sync.RWMutex
 	mu              sync.RWMutex
@@ -64,6 +66,8 @@ func NewApp(configPath string) *App {
 		forwarders:      make(map[string]*forward.Forwarder),
 		httpProxies:     make(map[string]*proxy.Proxy),
 		sshClients:      make(map[string]*ssh.Client),
+		sshServerValid:  make(map[string]bool),
+		sshServerErrors: make(map[string]string),
 		ctx:             ctx,
 		cancel:          cancel,
 		httpServer:      &http.Server{},
@@ -348,12 +352,18 @@ func (a *App) startSSHClients() error {
 	for _, s := range a.config.SSHServers {
 		client := ssh.NewClient(&s)
 		if err := client.Connect(); err != nil {
+			a.sshServerValid[s.ID] = false
+			a.sshServerErrors[s.ID] = err.Error()
 			a.log("ERROR", fmt.Sprintf("连接SSH服务器失败: %s (%v)", s.Name, err), s.ID)
+			logger.Error("SSH服务器启动检查失败", "server_name", s.Name, "server_id", s.ID, "error", err)
 			continue
 		}
 		client.StartKeepAlive()
 		a.sshClients[s.ID] = client
+		a.sshServerValid[s.ID] = true
+		a.sshServerErrors[s.ID] = ""
 		a.log("INFO", fmt.Sprintf("已连接到SSH服务器: %s", s.Name), s.ID)
+		logger.Info("SSH服务器启动检查成功", "server_name", s.Name, "server_id", s.ID)
 	}
 	return nil
 }
@@ -462,6 +472,12 @@ func (a *App) checkStatus() {
 			"server_id", id,
 			"connected", connected,
 		)
+		if !connected {
+			a.sshServerValid[id] = false
+			a.sshServerErrors[id] = "SSH连接已断开"
+			a.log("WARN", fmt.Sprintf("SSH服务器连接已断开，服务器ID: %s", id), id)
+			logger.Warn("SSH服务器连接已断开", "server_id", id)
+		}
 	}
 
 	for id, fw := range a.forwarders {
@@ -495,7 +511,50 @@ func (a *App) checkStatus() {
 		)
 	}
 
+	a.stopInvalidConnections()
+
 	logger.Info("===== 状态检查结束 =====")
+}
+
+func (a *App) stopInvalidConnections() {
+	for id := range a.sshClients {
+		if !a.sshServerValid[id] {
+			var serverName string
+			for _, s := range a.config.SSHServers {
+				if s.ID == id {
+					serverName = s.Name
+					break
+				}
+			}
+
+			for fwID, fw := range a.forwarders {
+				for _, f := range a.config.PortForwards {
+					if f.ID == fwID && f.SSHServerID == id {
+						fw.Stop()
+						delete(a.forwarders, fwID)
+						a.log("ERROR", fmt.Sprintf("SSH服务器无效，停止端口转发: %s", f.Name), fwID)
+						logger.Error("SSH服务器无效，停止端口转发", "server_name", serverName, "server_id", id, "forward_name", f.Name, "forward_id", fwID)
+					}
+				}
+			}
+
+			for proxyID, px := range a.httpProxies {
+				for _, p := range a.config.HTTPProxies {
+					if p.ID == proxyID && p.SSHServerID == id {
+						px.Stop()
+						delete(a.httpProxies, proxyID)
+						a.log("ERROR", fmt.Sprintf("SSH服务器无效，停止HTTP代理: %s", p.Name), proxyID)
+						logger.Error("SSH服务器无效，停止HTTP代理", "server_name", serverName, "server_id", id, "proxy_name", p.Name, "proxy_id", proxyID)
+					}
+				}
+			}
+
+			if client, ok := a.sshClients[id]; ok {
+				client.Close()
+				delete(a.sshClients, id)
+			}
+		}
+	}
 }
 
 func (a *App) Stop() {
@@ -542,12 +601,73 @@ func (a *App) GetConnections() []*types.ConnectionStatus {
 	defer a.mu.RUnlock()
 
 	var conns []*types.ConnectionStatus
+
 	for _, fw := range a.forwarders {
 		conns = append(conns, fw.GetStatus())
 	}
+
 	for _, px := range a.httpProxies {
 		conns = append(conns, px.GetStatus())
 	}
+
+	for _, f := range a.config.PortForwards {
+		if f.Enabled {
+			_, exists := a.forwarders[f.ID]
+			if !exists && !a.sshServerValid[f.SSHServerID] {
+				var serverName string
+				for _, s := range a.config.SSHServers {
+					if s.ID == f.SSHServerID {
+						serverName = s.Name
+						break
+					}
+				}
+				connStatus := &types.ConnectionStatus{
+					ID:                f.ID,
+					Type:              "port_forward",
+					Name:              f.Name,
+					LocalAddr:         fmt.Sprintf("%s:%d", f.ListenHost, f.ListenPort),
+					RemoteAddr:        fmt.Sprintf("%s:%d", f.RemoteHost, f.RemotePort),
+					Status:            "无效",
+					BytesIn:           0,
+					BytesOut:          0,
+					StartedAt:         time.Time{},
+					LastError:         fmt.Sprintf("SSH服务器无效: %s", serverName),
+					ActiveConnections: 0,
+				}
+				conns = append(conns, connStatus)
+			}
+		}
+	}
+
+	for _, p := range a.config.HTTPProxies {
+		if p.Enabled {
+			_, exists := a.httpProxies[p.ID]
+			if !exists && !a.sshServerValid[p.SSHServerID] {
+				var serverName string
+				for _, s := range a.config.SSHServers {
+					if s.ID == p.SSHServerID {
+						serverName = s.Name
+						break
+					}
+				}
+				connStatus := &types.ConnectionStatus{
+					ID:                p.ID,
+					Type:              "http_proxy",
+					Name:              p.Name,
+					LocalAddr:         p.Listen,
+					RemoteAddr:        "",
+					Status:            "无效",
+					BytesIn:           0,
+					BytesOut:          0,
+					StartedAt:         time.Time{},
+					LastError:         fmt.Sprintf("SSH服务器无效: %s", serverName),
+					ActiveConnections: 0,
+				}
+				conns = append(conns, connStatus)
+			}
+		}
+	}
+
 	return sortConnections(conns)
 }
 
@@ -594,6 +714,9 @@ func (a *App) GetSSHServers() []*types.SSHServer {
 		if err == nil {
 			server.Password = encryptedPassword
 		}
+		server.Valid = a.sshServerValid[server.ID]
+		server.LastValidationError = a.sshServerErrors[server.ID]
+		server.LastCheckedTime = time.Now()
 		servers[i] = &server
 	}
 	return servers
@@ -899,6 +1022,50 @@ func (a *App) GetLastRestartTime() string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.lastRestartTime.Format("2006-01-02 15:04:05")
+}
+
+func (a *App) TestSSHServer(id string) (bool, string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	var server *types.SSHServer
+	for _, s := range a.config.SSHServers {
+		if s.ID == id {
+			s_copy := s
+			server = &s_copy
+			break
+		}
+	}
+
+	if server == nil {
+		return false, "SSH服务器不存在", fmt.Errorf("server not found")
+	}
+
+	if server.Password != "" {
+		decryptedPassword, err := a.decryptPassword(server.Password)
+		if err == nil {
+			server.Password = decryptedPassword
+		}
+	}
+
+	testClient := ssh.NewClient(server)
+	err := testClient.TestConnection()
+
+	message := "连接成功"
+	if err != nil {
+		message = fmt.Sprintf("连接失败: %v", err)
+		a.sshServerValid[id] = false
+		a.sshServerErrors[id] = err.Error()
+		a.log("ERROR", fmt.Sprintf("SSH服务器测试失败: %s - %v", server.Name, err), id)
+		logger.Error("SSH服务器测试失败", "server_name", server.Name, "server_id", id, "error", err)
+	} else {
+		a.sshServerValid[id] = true
+		a.sshServerErrors[id] = ""
+		a.log("INFO", fmt.Sprintf("SSH服务器测试成功: %s", server.Name), id)
+		logger.Info("SSH服务器测试成功", "server_name", server.Name, "server_id", id)
+	}
+
+	return err == nil, message, err
 }
 
 func (a *App) basicAuthMiddleware(next http.Handler) http.Handler {

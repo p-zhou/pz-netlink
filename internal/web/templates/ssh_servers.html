@@ -36,11 +36,12 @@
                         <th class="text-right">端口</th>
                         <th>用户名</th>
                         <th class="no-wrap">认证方式</th>
+                        <th class="no-wrap">有效性</th>
                         <th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="serverTable">
-                    <tr><td colspan="6" style="text-align:center;">加载中...</td></tr>
+                    <tr><td colspan="7" style="text-align:center;">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -107,22 +108,37 @@
             const tbody = document.getElementById('serverTable');
             const serversList = servers || [];
             if(serversList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无SSH服务器</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">暂无SSH服务器</td></tr>';
                 return;
             }
-            tbody.innerHTML = serversList.map(s => `
+            tbody.innerHTML = serversList.map(s => {
+                let statusClass = 'status-unknown';
+                let statusText = '未检查';
+                if (s.valid === true) {
+                    statusClass = 'status-connected';
+                    statusText = '有效';
+                } else if (s.valid === false) {
+                    statusClass = 'status-disconnected';
+                    statusText = '无效';
+                    if (s.last_validation_error) {
+                        statusText += ` (${s.last_validation_error})`;
+                    }
+                }
+                return `
                 <tr>
                     <td>${s.name}</td>
                     <td>${s.host}</td>
                     <td class="text-right">${s.port}</td>
                     <td>${s.username}</td>
                     <td class="no-wrap">${s.auth_type}</td>
+                    <td class="no-wrap ${statusClass}">${statusText}</td>
                     <td class="actions">
+                        <button class="btn btn-test" onclick="testServer('${s.id}', this)">测试</button>
                         <button class="btn btn-edit" onclick="editServer('${s.id}', '${s.name}', '${s.host}', ${s.port}, '${s.username}', '${s.auth_type}', '${s.private_key||''}', ${s.keep_alive_interval}, '${s.password}')">编辑</button>
                         <button class="btn btn-danger" onclick="deleteServer('${s.id}')">删除</button>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
         function openModal() {
             editingId = null;
@@ -193,6 +209,25 @@
                 if(await showConfirm('SSH服务器已删除，需要重启服务器以使修改生效。是否现在重启？')) {
                     await performRestart();
                 }
+            }
+        }
+        async function testServer(id, btn) {
+            const originalText = btn.textContent;
+            btn.textContent = '测试中...';
+            btn.disabled = true;
+            try {
+                const result = await apiCall('/api/ssh-test?id=' + id, { method: 'POST' });
+                if (result.valid) {
+                    await showConfirm('测试成功！连接可用。');
+                } else {
+                    await showConfirm(`测试失败：${result.message}`);
+                }
+                loadServers();
+            } catch (error) {
+                await showConfirm(`测试失败：${error.message}`);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         }
         loadServers();
