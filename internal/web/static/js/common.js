@@ -59,11 +59,15 @@ function closeAlert() {
 }
 
 function showWaiting() {
+    initDialogs();
     document.getElementById('waitingOverlay').classList.add('active');
 }
 
 function hideWaiting() {
-    document.getElementById('waitingOverlay').classList.remove('active');
+    const overlay = document.getElementById('waitingOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
 }
 
 async function apiCall(url, options = {}) {
