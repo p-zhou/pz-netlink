@@ -642,33 +642,52 @@ func (a *App) GetConnections() []*types.ConnectionStatus {
 	for _, p := range a.config.HTTPProxies {
 		if p.Enabled {
 			_, exists := a.httpProxies[p.ID]
-			if !exists && !a.sshServerValid[p.SSHServerID] {
-				var serverName string
-				for _, s := range a.config.SSHServers {
-					if s.ID == p.SSHServerID {
-						serverName = s.Name
-						break
+			if !exists {
+				var sshServerID string = p.SSHServerID
+				if sshServerID == "" {
+					sshServerID = a.getFirstValidSSHServerID()
+				}
+
+				if !a.sshServerValid[sshServerID] {
+					var serverName string
+					for _, s := range a.config.SSHServers {
+						if s.ID == sshServerID {
+							serverName = s.Name
+							break
+						}
 					}
+					if serverName == "" {
+						serverName = "默认服务器"
+					}
+					connStatus := &types.ConnectionStatus{
+						ID:                p.ID,
+						Type:              "http_proxy",
+						Name:              p.Name,
+						LocalAddr:         p.Listen,
+						RemoteAddr:        "",
+						Status:            "无效",
+						BytesIn:           0,
+						BytesOut:          0,
+						StartedAt:         time.Time{},
+						LastError:         fmt.Sprintf("SSH服务器无效: %s", serverName),
+						ActiveConnections: 0,
+					}
+					conns = append(conns, connStatus)
 				}
-				connStatus := &types.ConnectionStatus{
-					ID:                p.ID,
-					Type:              "http_proxy",
-					Name:              p.Name,
-					LocalAddr:         p.Listen,
-					RemoteAddr:        "",
-					Status:            "无效",
-					BytesIn:           0,
-					BytesOut:          0,
-					StartedAt:         time.Time{},
-					LastError:         fmt.Sprintf("SSH服务器无效: %s", serverName),
-					ActiveConnections: 0,
-				}
-				conns = append(conns, connStatus)
 			}
 		}
 	}
 
 	return sortConnections(conns)
+}
+
+func (a *App) getFirstValidSSHServerID() string {
+	for _, s := range a.config.SSHServers {
+		if a.sshServerValid[s.ID] {
+			return s.ID
+		}
+	}
+	return ""
 }
 
 func sortConnections(conns []*types.ConnectionStatus) []*types.ConnectionStatus {
