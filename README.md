@@ -9,8 +9,8 @@
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
-| `-config` | 配置文件路径 | `.conf/config.toml` |
-| `-port` | Web 服务监听端口 | `8080` |
+| `-config` | 配置文件路径 | 不指定的情况下, 默认路径为 `.conf/config.toml` |
+| `-port` | Web 服务监听端口 | 默认读取配置文件中指定的端口, 如果均未指定则使用默认值 `8080` |
 | `-log-level` | 日志级别 (DEBUG, INFO, WARN, ERROR) | `INFO` |
 
 **使用示例：**
@@ -28,13 +28,13 @@
 ./pz-netlink -config my.toml -port 9000 -log-level DEBUG
 ```
 
-**注意：** 命令行参数 `-port` 会覆盖配置文件中的 `server.port` 设置，除非使用默认值 `8080`。
+**注意：** 命令行参数 `-port` 会覆盖配置文件中的 `server.port` 设置。
 
 ### 配置文件
 
 使用 TOML 格式的配置文件（如果不在命令行参数指定, 则默认为 `.conf/config.toml` 文件），程序首次运行时会自动创建配置文件。
 
-> **提示：** 关于详细的配置项说明，请参考 [pkg/types/types.go](pkg/types/types.go)
+> **提示：** 关于详细的配置项说明，请参考 [pkg/types/types.go](pkg/types/types.go) .
 
 ## 概要设计
 
