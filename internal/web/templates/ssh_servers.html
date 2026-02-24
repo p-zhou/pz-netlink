@@ -54,7 +54,6 @@
             </div>
             <form id="serverForm">
                 <input type="hidden" id="serverId">
-                <input type="hidden" id="serverPasswordEncrypted">
                 <div class="form-group">
                     <label>名称</label>
                     <input type="text" id="serverName" required>
@@ -80,7 +79,8 @@
                 </div>
                 <div class="form-group" id="passwordGroup">
                     <label>密码</label>
-                    <input type="password" id="serverPassword">
+                    <input type="text" id="serverPassword" placeholder="输入新密码以覆盖当前加密密码">
+                    <small style="color: #64748b; font-size: 0.75rem;">编辑时密码框显示为加密文本，无需修改请直接保存</small>
                 </div>
                 <div class="form-group" id="privateKeyGroup">
                     <label>私钥路径</label>
@@ -145,8 +145,7 @@
             document.getElementById('serverAuthType').value = authType;
             document.getElementById('serverPrivateKey').value = privateKey;
             document.getElementById('serverKeepAlive').value = keepAlive;
-            document.getElementById('serverPasswordEncrypted').value = password;
-            document.getElementById('serverPassword').value = '';
+            document.getElementById('serverPassword').value = password;
             document.getElementById('serverModal').classList.add('active');
             updateAuthFields();
         }
@@ -164,19 +163,13 @@
         }
         document.getElementById('serverForm').onsubmit = async (e) => {
             e.preventDefault();
-            const passwordInput = document.getElementById('serverPassword').value;
-            const passwordEncrypted = document.getElementById('serverPasswordEncrypted').value;
-            let passwordToSend = passwordInput;
-            if(editingId && passwordInput === '' && passwordEncrypted !== '') {
-                passwordToSend = passwordEncrypted;
-            }
             const data = {
                 name: document.getElementById('serverName').value,
                 host: document.getElementById('serverHost').value,
                 port: parseInt(document.getElementById('serverPort').value),
                 username: document.getElementById('serverUsername').value,
                 auth_type: document.getElementById('serverAuthType').value,
-                password: passwordToSend,
+                password: document.getElementById('serverPassword').value,
                 private_key: document.getElementById('serverPrivateKey').value,
                 keep_alive_interval: parseInt(document.getElementById('serverKeepAlive').value)
             };
