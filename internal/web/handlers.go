@@ -143,7 +143,25 @@ func (h *Handler) apiSSHServers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) apiPortForwards(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		json.NewEncoder(w).Encode(h.manager.GetPortForwards())
+		forwards := h.manager.GetPortForwards()
+		servers := h.manager.GetSSHServers()
+		serverMap := make(map[string]*types.SSHServer)
+		for _, s := range servers {
+			serverMap[s.ID] = s
+		}
+		result := make([]types.PortForwardWithStatus, len(forwards))
+		for i, f := range forwards {
+			result[i] = types.PortForwardWithStatus{
+				PortForward:    *f,
+				SSHServerValid: false,
+				SSHServerName:  "",
+			}
+			if server, ok := serverMap[f.SSHServerID]; ok {
+				result[i].SSHServerValid = server.Valid
+				result[i].SSHServerName = server.Name
+			}
+		}
+		json.NewEncoder(w).Encode(result)
 	case http.MethodPost:
 		var forward types.PortForward
 		json.NewDecoder(r.Body).Decode(&forward)
@@ -167,7 +185,27 @@ func (h *Handler) apiPortForwards(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) apiHTTPProxy(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		json.NewEncoder(w).Encode(h.manager.GetHTTPProxies())
+		proxies := h.manager.GetHTTPProxies()
+		servers := h.manager.GetSSHServers()
+		serverMap := make(map[string]*types.SSHServer)
+		for _, s := range servers {
+			serverMap[s.ID] = s
+		}
+		result := make([]types.HTTPProxyWithStatus, len(proxies))
+		for i, p := range proxies {
+			result[i] = types.HTTPProxyWithStatus{
+				HTTPProxy:      *p,
+				SSHServerValid: false,
+				SSHServerName:  "默认",
+			}
+			if p.SSHServerID != "" {
+				if server, ok := serverMap[p.SSHServerID]; ok {
+					result[i].SSHServerValid = server.Valid
+					result[i].SSHServerName = server.Name
+				}
+			}
+		}
+		json.NewEncoder(w).Encode(result)
 	case http.MethodPost:
 		var proxy types.HTTPProxy
 		json.NewDecoder(r.Body).Decode(&proxy)

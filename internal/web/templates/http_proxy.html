@@ -34,12 +34,13 @@
                         <th>名称</th>
                         <th>监听地址</th>
                         <th>SSH服务器</th>
-                        <th class="no-wrap">状态</th>
+                        <th class="no-wrap">启用状态</th>
+                        <th class="no-wrap">SSH状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="proxyTable">
-                    <tr><td colspan="5" style="text-align:center;">加载中...</td></tr>
+                    <tr><td colspan="6" style="text-align:center;">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -99,17 +100,26 @@
             const proxiesList = proxies || [];
             const tbody = document.getElementById('proxyTable');
             if(proxiesList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">暂无HTTP代理</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无HTTP代理</td></tr>';
                 return;
             }
             tbody.innerHTML = proxiesList.map(p => {
-                const server = servers.find(s => s.id === p.ssh_server_id) || {};
+                let sshStatusClass = 'status-unknown';
+                let sshStatusText = '未知';
+                if (p.ssh_server_valid === true) {
+                    sshStatusClass = 'status-connected';
+                    sshStatusText = '有效';
+                } else if (p.ssh_server_valid === false) {
+                    sshStatusClass = 'status-invalid';
+                    sshStatusText = '无效';
+                }
                 return `
                 <tr>
                     <td>${p.name}</td>
                     <td>${p.listen}</td>
-                    <td>${server.name || '默认'}</td>
+                    <td>${p.ssh_server_name || '默认'}</td>
                     <td class="no-wrap">${p.enabled ? '已启用' : '已禁用'}</td>
+                    <td class="no-wrap ${sshStatusClass}">${sshStatusText}</td>
                     <td class="actions">
                         <button class="btn btn-edit" onclick="editProxy('${p.id}', '${p.name}', '${p.listen}', '${p.ssh_server_id}', ${p.enabled})">编辑</button>
                         <button class="btn btn-danger" onclick="deleteProxy('${p.id}')">删除</button>

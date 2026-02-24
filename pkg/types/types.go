@@ -123,6 +123,20 @@ type HTTPProxy struct {
 // Deprecated: 请使用 HTTPProxy 类型
 type HTTPProxyConfig = HTTPProxy
 
+// PortForwardWithStatus 包含端口转发及其SSH服务器状态
+type PortForwardWithStatus struct {
+	PortForward
+	SSHServerValid bool   `json:"ssh_server_valid"`
+	SSHServerName  string `json:"ssh_server_name"`
+}
+
+// HTTPProxyWithStatus 包含HTTP代理及其SSH服务器状态
+type HTTPProxyWithStatus struct {
+	HTTPProxy
+	SSHServerValid bool   `json:"ssh_server_valid"`
+	SSHServerName  string `json:"ssh_server_name"`
+}
+
 // ConnectionStatus 表示活动连接的状态信息
 // 用于在Web界面中展示当前所有活动连接的实时状态
 type ConnectionStatus struct {

@@ -35,12 +35,13 @@
                         <th>SSH服务器</th>
                         <th>本地</th>
                         <th>远程</th>
-                        <th class="no-wrap">状态</th>
+                        <th class="no-wrap">启用状态</th>
+                        <th class="no-wrap">SSH状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="forwardTable">
-                    <tr><td colspan="6" style="text-align:center;">加载中...</td></tr>
+                    <tr><td colspan="7" style="text-align:center;">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -111,18 +112,27 @@
             const forwardsList = forwards || [];
             const tbody = document.getElementById('forwardTable');
             if(forwardsList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">暂无端口转发</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">暂无端口转发</td></tr>';
                 return;
             }
             tbody.innerHTML = forwardsList.map(f => {
-                const server = servers.find(s => s.id === f.ssh_server_id) || {};
+                let sshStatusClass = 'status-unknown';
+                let sshStatusText = '未知';
+                if (f.ssh_server_valid === true) {
+                    sshStatusClass = 'status-connected';
+                    sshStatusText = '有效';
+                } else if (f.ssh_server_valid === false) {
+                    sshStatusClass = 'status-invalid';
+                    sshStatusText = '无效';
+                }
                 return `
                 <tr>
                     <td>${f.name}</td>
-                    <td>${server.name || '未知'}</td>
+                    <td>${f.ssh_server_name || '未知'}</td>
                     <td>${f.listen_host}:${f.listen_port}</td>
                     <td>${f.remote_host}:${f.remote_port}</td>
                     <td class="no-wrap">${f.enabled ? '已启用' : '已禁用'}</td>
+                    <td class="no-wrap ${sshStatusClass}">${sshStatusText}</td>
                     <td class="actions">
                         <button class="btn btn-edit" onclick="editForward('${f.id}', '${f.name}', '${f.ssh_server_id}', '${f.listen_host}', ${f.listen_port}, '${f.remote_host}', ${f.remote_port}, ${f.enabled})">编辑</button>
                         <button class="btn btn-danger" onclick="deleteForward('${f.id}')">删除</button>

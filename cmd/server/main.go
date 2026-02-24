@@ -796,13 +796,16 @@ func (a *App) DeleteSSHServer(id string) {
 func (a *App) GetPortForwards() []*types.PortForward {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
+
 	forwards := make([]*types.PortForward, len(a.config.PortForwards))
 	for i := range a.config.PortForwards {
-		forwards[i] = &a.config.PortForwards[i]
+		pf := a.config.PortForwards[i]
+		forwards[i] = &pf
 	}
 	sort.Slice(forwards, func(i, j int) bool {
 		return forwards[i].Name < forwards[j].Name
 	})
+
 	return forwards
 }
 
