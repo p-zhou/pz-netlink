@@ -3,6 +3,7 @@ package web
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -28,11 +29,35 @@ func NewHandler(manager Manager) *Handler {
 	if err != nil {
 		panic(err)
 	}
-	templates := template.Must(template.ParseFS(templatesFS, "*.html"))
+	funcMap := template.FuncMap{
+		"formatBytes": formatBytes,
+		"formatTime":  formatTime,
+	}
+	templates := template.Must(template.New("").Funcs(funcMap).ParseFS(templatesFS, "*.html"))
 	return &Handler{
 		templates: templates,
 		manager:   manager,
 	}
+}
+
+func formatBytes(b int64) string {
+	if b < 1024 {
+		return fmt.Sprintf("%d B", b)
+	}
+	if b < 1024*1024 {
+		return fmt.Sprintf("%.1f KB", float64(b)/1024)
+	}
+	if b < 1024*1024*1024 {
+		return fmt.Sprintf("%.1f MB", float64(b)/1024/1024)
+	}
+	return fmt.Sprintf("%.1f GB", float64(b)/1024/1024/1024)
+}
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return "-"
+	}
+	return t.Format("2006-01-02 15:04:05")
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
