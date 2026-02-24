@@ -179,14 +179,9 @@
             }
             closeModal();
             loadServers();
-            if(editingId) {
-                if(await showConfirm('SSH服务器配置已修改，需要重启服务器以使修改生效。是否现在重启？')) {
-                    await performRestart();
-                }
-            } else {
-                if(await showConfirm('SSH服务器已添加，需要重启服务器以使修改生效。是否现在重启？')) {
-                    await performRestart();
-                }
+            const action = editingId ? '修改' : '添加';
+            if(await showConfirm(`SSH服务器配置已${action}，需要重启服务器以使修改生效。是否现在重启？`)) {
+                await performRestart();
             }
         };
         async function deleteServer(id) {
