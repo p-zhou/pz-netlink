@@ -88,8 +88,8 @@
 
         async function loadData() {
             const [serversData, proxiesData] = await Promise.all([
-                fetch('/api/ssh-servers').then(r => r.json()),
-                fetch('/api/http-proxies').then(r => r.json())
+                apiCall('/api/ssh-servers'),
+                apiCall('/api/http-proxies')
             ]);
             servers = serversData || [];
             renderTable(proxiesData);
@@ -156,9 +156,9 @@
             const id = document.getElementById('proxyId').value;
             if(id) {
                 data.id = id;
-                await fetch('/api/http-proxies', { method: 'PUT', body: JSON.stringify(data) });
+                await apiCall('/api/http-proxies', { method: 'PUT', body: JSON.stringify(data) });
             } else {
-                await fetch('/api/http-proxies', { method: 'POST', body: JSON.stringify(data) });
+                await apiCall('/api/http-proxies', { method: 'POST', body: JSON.stringify(data) });
             }
             closeModal();
             loadData();
@@ -166,7 +166,7 @@
 
         async function deleteProxy(id) {
             if(await showConfirm('确定要删除这个HTTP代理吗?')) {
-                await fetch('/api/http-proxies?id=' + id, { method: 'DELETE' });
+                await apiCall('/api/http-proxies?id=' + id, { method: 'DELETE' });
                 loadData();
             }
         }

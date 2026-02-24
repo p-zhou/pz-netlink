@@ -101,8 +101,8 @@
 
         async function loadData() {
             const [serversData, forwardsData] = await Promise.all([
-                fetch('/api/ssh-servers').then(r => r.json()),
-                fetch('/api/port-forwards').then(r => r.json())
+                apiCall('/api/ssh-servers'),
+                apiCall('/api/port-forwards')
             ]);
             servers = serversData || [];
             renderTable(forwardsData);
@@ -171,16 +171,16 @@
             const id = document.getElementById('forwardId').value;
             if(id) {
                 data.id = id;
-                await fetch('/api/port-forwards', { method: 'PUT', body: JSON.stringify(data) });
+                await apiCall('/api/port-forwards', { method: 'PUT', body: JSON.stringify(data) });
             } else {
-                await fetch('/api/port-forwards', { method: 'POST', body: JSON.stringify(data) });
+                await apiCall('/api/port-forwards', { method: 'POST', body: JSON.stringify(data) });
             }
             closeModal();
             loadData();
         };
         async function deleteForward(id) {
             if(await showConfirm('确定要删除这个端口转发吗?')) {
-                await fetch('/api/port-forwards?id=' + id, { method: 'DELETE' });
+                await apiCall('/api/port-forwards?id=' + id, { method: 'DELETE' });
                 loadData();
             }
         }

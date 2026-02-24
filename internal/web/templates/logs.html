@@ -60,7 +60,7 @@
             return levelMap[level] || level;
         }
         async function loadLogs() {
-            const logs = await fetch('/api/logs').then(r => r.json());
+            const logs = await apiCall('/api/logs');
             const container = document.getElementById('logList');
             const logsList = logs || [];
             if(logsList.length === 0) {
@@ -76,7 +76,7 @@
             `).join('');
         }
         async function loadStatus() {
-            const status = await fetch('/api/status').then(r => r.json());
+            const status = await apiCall('/api/status');
             document.getElementById('appStartTime').textContent = status.app_start_time;
             document.getElementById('lastRestartTime').textContent = status.last_restart_time;
         }

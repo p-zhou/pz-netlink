@@ -102,7 +102,7 @@
         let editingId = null;
 
         async function loadServers() {
-            const servers = await fetch('/api/ssh-servers').then(r => r.json());
+            const servers = await apiCall('/api/ssh-servers');
             const tbody = document.getElementById('serverTable');
             const serversList = servers || [];
             if(serversList.length === 0) {
@@ -173,9 +173,9 @@
             };
             if(editingId) {
                 data.id = editingId;
-                await fetch('/api/ssh-servers', { method: 'PUT', body: JSON.stringify(data) });
+                await apiCall('/api/ssh-servers', { method: 'PUT', body: JSON.stringify(data) });
             } else {
-                await fetch('/api/ssh-servers', { method: 'POST', body: JSON.stringify(data) });
+                await apiCall('/api/ssh-servers', { method: 'POST', body: JSON.stringify(data) });
             }
             closeModal();
             loadServers();
@@ -186,7 +186,7 @@
         };
         async function deleteServer(id) {
             if(await showConfirm('确定要删除这个SSH服务器吗?')) {
-                await fetch('/api/ssh-servers?id=' + id, { method: 'DELETE' });
+                await apiCall('/api/ssh-servers?id=' + id, { method: 'DELETE' });
                 loadServers();
                 if(await showConfirm('SSH服务器已删除，需要重启服务器以使修改生效。是否现在重启？')) {
                     await performRestart();

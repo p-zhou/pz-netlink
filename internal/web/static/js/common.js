@@ -1,10 +1,10 @@
 let confirmResolve = null;
 
 function initDialogs() {
-    if (document.getElementById('confirmDialog') && document.getElementById('alertDialog')) {
+    if (document.getElementById('confirmDialog') && document.getElementById('alertDialog') && document.getElementById('waitingOverlay')) {
         return;
     }
-    
+
     document.body.insertAdjacentHTML('beforeend', `
         <dialog id="confirmDialog">
             <div class="dialog-content">
@@ -24,6 +24,10 @@ function initDialogs() {
                 </div>
             </div>
         </dialog>
+
+        <div id="waitingOverlay" class="waiting-overlay">
+            <div class="waiting-spinner"></div>
+        </div>
     `);
 }
 
@@ -54,8 +58,35 @@ function closeAlert() {
     document.getElementById('alertDialog').close();
 }
 
+function showWaiting() {
+    document.getElementById('waitingOverlay').classList.add('active');
+}
+
+function hideWaiting() {
+    document.getElementById('waitingOverlay').classList.remove('active');
+}
+
+async function apiCall(url, options = {}) {
+    showWaiting();
+    try {
+        if (options.body) {
+            options.headers = {
+                ...options.headers,
+                'Content-Type': 'application/json'
+            };
+        }
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } finally {
+        hideWaiting();
+    }
+}
+
 async function performRestart() {
-    const res = await fetch('/api/restart', { method: 'POST' }).then(r => r.json());
+    const res = await apiCall('/api/restart', { method: 'POST' });
     const sshTotal = res.ssh_servers.total;
     const sshEnabled = res.ssh_servers.enabled;
     const fwTotal = res.port_forwards.total;

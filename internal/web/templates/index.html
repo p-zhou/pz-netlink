@@ -59,10 +59,10 @@
         async function loadStats() {
             try {
                 const [conns, forwards, ssh, proxies] = await Promise.all([
-                    fetch('/api/connections').then(r => r.json()),
-                    fetch('/api/port-forwards').then(r => r.json()),
-                    fetch('/api/ssh-servers').then(r => r.json()),
-                    fetch('/api/http-proxies').then(r => r.json())
+                    apiCall('/api/connections'),
+                    apiCall('/api/port-forwards'),
+                    apiCall('/api/ssh-servers'),
+                    apiCall('/api/http-proxies')
                 ]);
                 document.getElementById('connectionCount').textContent = (conns || []).length;
                 document.getElementById('forwardCount').textContent = (forwards || []).filter(f => f.enabled).length;
