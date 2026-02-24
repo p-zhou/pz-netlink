@@ -89,7 +89,7 @@
                 const connCountHtml = connCount > 0
                     ? `<a href="/connections/details?id=${c.id}" target="conn-${c.id}" style="color:#0066cc; text-decoration:none;">${connCount}</a>`
                     : connCount;
-                const infoIcon = `<a href="/connections/details?id=${c.id}" target="conn-${c.id}" title="详细信息" style="color:#666; text-decoration:none; margin-left:8px; border:1px solid #ccc; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold;">i</a>`;
+                const infoIcon = `<a href="/connections/details?id=${c.id}" target="conn-${c.id}" title="详细信息" style="background:#0066cc; color:#fff; text-decoration:none; margin-left:8px; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; font-style:italic;">i</a>`;
                 return `
                 <tr>
                     <td>${c.name}${infoIcon}</td>
