@@ -65,8 +65,10 @@
                     apiCall('/api/http-proxies')
                 ]);
 
-                const connectionCount = (conns || []).length;
-                document.getElementById('connectionCount').textContent = connectionCount;
+                const connList = conns || [];
+                const invalidConns = connList.filter(c => c.status === 'invalid');
+                const connHTML = connList.length + (invalidConns.length > 0 ? `<span class="stat-invalid"> / ${invalidConns.length}</span>` : '');
+                document.getElementById('connectionCount').innerHTML = connHTML;
 
                 const enabledForwards = (forwards || []).filter(f => f.enabled);
                 const invalidForwards = enabledForwards.filter(f => !f.ssh_server_valid);
