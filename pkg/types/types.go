@@ -137,11 +137,24 @@ type HTTPProxyWithStatus struct {
 	SSHServerName  string `json:"ssh_server_name"`
 }
 
-// 连接状态常量
+// 连接状态常量定义了连接可能的运行状态
+// 这些常量用于标识端口转发或HTTP代理的当前状态
 const (
-	ConnectionStatusConnected    = "connected"
+	// ConnectionStatusConnected 表示连接正常工作状态
+	// 端口转发或HTTP代理正在运行，可以正常处理流量
+	// 对应的SSH服务器连接正常有效
+	ConnectionStatusConnected = "connected"
+
+	// ConnectionStatusDisconnected 表示连接已断开状态
+	// 端口转发或HTTP代理已停止运行，不再处理流量
+	// 可能是用户手动禁用，或服务已停止
 	ConnectionStatusDisconnected = "disconnected"
-	ConnectionStatusInvalid      = "invalid"
+
+	// ConnectionStatusInvalid 表示连接无效状态
+	// 端口转发或HTTP代理无法正常运行，因为关联的SSH服务器无效
+	// 此时服务已停止，需要检查SSH服务器配置并修复问题
+	// 与"已禁用"状态不同，"无效"状态表示由于SSH服务器问题导致无法运行
+	ConnectionStatusInvalid = "invalid"
 )
 
 // ConnectionStatus 表示活动连接的状态信息
@@ -157,10 +170,14 @@ type ConnectionStatus struct {
 	// 格式为"host:port"
 	LocalAddr string `json:"local_addr"`
 	// RemoteAddr 远程目标地址
-	// 格式为"host:port"
+	// 格式为"host:port"，对于HTTP代理可能为空
 	RemoteAddr string `json:"remote_addr"`
 	// Status 连接状态
-	// 常见值："running"（运行中）、"stopped"（已停止）、"error"（错误）
+	// 可能的值：
+	//   - "connected"：已连接，服务正常运行
+	//   - "disconnected"：已断开，服务已停止
+	//   - "invalid"：无效，由于SSH服务器问题导致无法运行
+	// 前端会将这些英文状态映射为中文显示（已连接、已断开、无效）
 	Status string `json:"status"`
 	// BytesIn 接收的字节数统计
 	BytesIn int64 `json:"bytes_in"`
