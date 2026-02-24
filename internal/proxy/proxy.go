@@ -28,7 +28,14 @@ type Proxy struct {
 	bytesOut  int64
 	startTime time.Time
 	mu        sync.RWMutex
-	conns     map[string]net.Conn
+	conns     map[string]*connInfo
+}
+
+type connInfo struct {
+	conn       net.Conn
+	startAt    time.Time
+	clientIP   string
+	targetHost string
 }
 
 func NewProxy(id string, name string, cfg *types.HTTPProxy, dialer interface {
@@ -39,7 +46,7 @@ func NewProxy(id string, name string, cfg *types.HTTPProxy, dialer interface {
 		name:      name,
 		config:    cfg,
 		sshDialer: dialer,
-		conns:     make(map[string]net.Conn),
+		conns:     make(map[string]*connInfo),
 	}
 }
 
@@ -143,8 +150,14 @@ func (p *Proxy) handleConn(client net.Conn) {
 		defer remote.Close()
 
 		connID := fmt.Sprintf("%s-%d", clientIP, time.Now().UnixNano())
+		info := &connInfo{
+			conn:       client,
+			startAt:    time.Now(),
+			clientIP:   clientIP,
+			targetHost: host,
+		}
 		p.mu.Lock()
-		p.conns[connID] = client
+		p.conns[connID] = info
 		p.mu.Unlock()
 
 		logger.Info("CONNECT连接成功",
@@ -409,8 +422,14 @@ func (p *Proxy) handleConnect(client net.Conn, req *http.Request, clientIP strin
 	defer remote.Close()
 
 	connID := fmt.Sprintf("%s-%d", clientIP, time.Now().UnixNano())
+	info := &connInfo{
+		conn:       client,
+		startAt:    time.Now(),
+		clientIP:   clientIP,
+		targetHost: host,
+	}
 	p.mu.Lock()
-	p.conns[connID] = client
+	p.conns[connID] = info
 	p.mu.Unlock()
 
 	logger.Info("HTTP代理CONNECT连接成功",
@@ -484,8 +503,14 @@ func (p *Proxy) handleHTTP(client net.Conn, req *http.Request, clientIP string) 
 	defer remote.Close()
 
 	connID := fmt.Sprintf("%s-%d", clientIP, time.Now().UnixNano())
+	info := &connInfo{
+		conn:       client,
+		startAt:    time.Now(),
+		clientIP:   clientIP,
+		targetHost: host,
+	}
 	p.mu.Lock()
-	p.conns[connID] = client
+	p.conns[connID] = info
 	p.mu.Unlock()
 
 	logger.Info("HTTP代理HTTP连接成功",
@@ -549,4 +574,20 @@ func (p *Proxy) GetStatus() *types.ConnectionStatus {
 		StartedAt:         p.startTime,
 		ActiveConnections: activeConns,
 	}
+}
+
+func (p *Proxy) GetActiveConnections() []types.ActiveConnectionInfo {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	result := make([]types.ActiveConnectionInfo, 0, len(p.conns))
+	for id, info := range p.conns {
+		result = append(result, types.ActiveConnectionInfo{
+			ID:        id,
+			ClientIP:  info.clientIP,
+			StartedAt: info.startAt,
+			Duration:  time.Since(info.startAt).String(),
+		})
+	}
+	return result
 }

@@ -721,6 +721,31 @@ func (a *App) GetConnections() []*types.ConnectionStatus {
 	return sortConnections(conns)
 }
 
+func (a *App) GetActiveConnections(id string) ([]types.ActiveConnectionInfo, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	if fw, ok := a.forwarders[id]; ok {
+		connections := fw.GetActiveConnections()
+		result := make([]types.ActiveConnectionInfo, len(connections))
+		for i, conn := range connections {
+			result[i] = types.ActiveConnectionInfo{
+				ID:        conn["id"].(string),
+				ClientIP:  conn["client_ip"].(string),
+				StartedAt: conn["started_at"].(time.Time),
+				Duration:  conn["duration"].(string),
+			}
+		}
+		return result, nil
+	}
+
+	if px, ok := a.httpProxies[id]; ok {
+		return px.GetActiveConnections(), nil
+	}
+
+	return nil, fmt.Errorf("connection not found")
+}
+
 func (a *App) getFirstValidSSHServerID() string {
 	for _, s := range a.config.SSHServers {
 		if a.sshServerValid[s.ID] {

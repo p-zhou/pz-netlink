@@ -207,3 +207,19 @@ type LogEntry struct {
 	// 如果此日志与特定连接相关，则包含该连接的ID
 	ConnectionID string `json:"connection_id,omitempty"`
 }
+
+// ActiveConnectionInfo 表示活动连接的详细信息
+// 用于在Web界面中显示每个子连接的具体信息
+type ActiveConnectionInfo struct {
+	// ID 连接的唯一标识符
+	// 格式通常为 "clientIP-timestamp"
+	ID string `json:"id"`
+	// ClientIP 客户端IP地址和端口
+	// 格式为 "ip:port"
+	ClientIP string `json:"client_ip"`
+	// StartedAt 连接开始时间
+	StartedAt time.Time `json:"started_at"`
+	// Duration 连接持续时间
+	// 格式为持续时间字符串，例如 "1h23m45s"
+	Duration string `json:"duration"`
+}

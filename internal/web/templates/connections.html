@@ -85,6 +85,10 @@
             tbody.innerHTML = connsList.map(c => {
                 const statusText = formatStatus(c.status);
                 const statusClass = getStatusClass(c.status);
+                const connCount = c.active_connections || 0;
+                const connCountHtml = connCount > 0
+                    ? `<a href="/connections/details?id=${c.id}" target="_blank" style="color:#0066cc; text-decoration:none;">${connCount}</a>`
+                    : connCount;
                 return `
                 <tr>
                     <td>${c.name}</td>
@@ -92,7 +96,7 @@
                     <td>${c.local_addr}</td>
                     <td>${c.remote_addr}</td>
                     <td class="${statusClass} no-wrap">${statusText}</td>
-                    <td class="text-right">${c.active_connections || 0}</td>
+                    <td class="text-right">${connCountHtml}</td>
                     <td class="text-right">${formatBytes(c.bytes_in)}</td>
                     <td class="text-right">${formatBytes(c.bytes_out)}</td>
                     <td>${formatTime(c.started_at)}</td>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>详细连接信息 - NetLink</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/css/common.css">
+</head>
+<body>
+    <header class="header">
+        <div class="logo-container">
+            <img src="/static/logo.svg" alt="NetLink">
+            <span class="logo-text">NetLink</span>
+        </div>
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a href="/connections">连接</a>
+            <a href="/logs">日志</a>
+            <a href="/ssh-servers">SSH服务器</a>
+            <a href="/port-forwards">端口转发</a>
+            <a href="/http-proxy">HTTP代理</a>
+        </nav>
+    </header>
+    <main class="container-full">
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h2>详细连接信息</h2>
+                <button class="btn btn-secondary" onclick="window.close()">关闭</button>
+            </div>
+            <div style="margin-bottom:1.5rem; padding:1rem; background:#f5f5f5; border-radius:4px;">
+                <h3>{{.Connection.Name}}</h3>
+                <p><strong>类型:</strong> {{if eq .Connection.Type "port_forward"}}端口转发{{else if eq .Connection.Type "http_proxy"}}HTTP代理{{else}}{{.Connection.Type}}{{end}}</p>
+                <p><strong>本地地址:</strong> {{.Connection.LocalAddr}}</p>
+                {{if ne .Connection.RemoteAddr ""}}<p><strong>远程地址:</strong> {{.Connection.RemoteAddr}}</p>{{end}}
+                <p><strong>状态:</strong> <span class="status-{{.Connection.Status}}">{{if eq .Connection.Status "connected"}}已连接{{else if eq .Connection.Status "disconnected"}}已断开{{else if eq .Connection.Status "invalid"}}无效{{else}}{{.Connection.Status}}{{end}}</span></p>
+                <p><strong>接收:</strong> {{formatBytes .Connection.BytesIn}}</p>
+                <p><strong>发送:</strong> {{formatBytes .Connection.BytesOut}}</p>
+                <p><strong>启动时间:</strong> {{formatTime .Connection.StartedAt}}</p>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3>活动连接 ({{.Connection.ActiveConnections}})</h3>
+                <button class="btn btn-refresh" onclick="loadDetails()">刷新</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>连接ID</th>
+                        <th>客户端地址</th>
+                        <th>开始时间</th>
+                        <th class="no-wrap">持续时间</th>
+                    </tr>
+                </thead>
+                <tbody id="detailsTable">
+                    <tr><td colspan="4" style="text-align:center;">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+    <script>
+        const connectionId = '{{.Connection.ID}}';
+        function formatBytes(b) {
+            if(b < 1024) return b + ' B';
+            if(b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+            if(b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
+            return (b/1024/1024/1024).toFixed(1) + ' GB';
+        }
+        function formatTime(t) {
+            return new Date(t).toLocaleString();
+        }
+        async function loadDetails() {
+            const details = await fetch('/api/connections/details?id=' + connectionId).then(r => r.json());
+            const tbody = document.getElementById('detailsTable');
+            const detailsList = details || [];
+            if(detailsList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">暂无活动连接</td></tr>';
+                return;
+            }
+            tbody.innerHTML = detailsList.map(d => `
+                <tr>
+                    <td class="no-wrap" style="font-family:monospace;">${d.id}</td>
+                    <td>${d.client_ip}</td>
+                    <td>${formatTime(d.started_at)}</td>
+                    <td class="no-wrap">${d.duration}</td>
+                </tr>
+            `).join('');
+        }
+        loadDetails();
+        setInterval(loadDetails, 5000);
+    </script>
+</body>
+</html>

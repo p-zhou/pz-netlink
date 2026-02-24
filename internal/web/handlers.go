@@ -45,12 +45,14 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/", h.index)
 	mux.HandleFunc("/connections", h.connections)
+	mux.HandleFunc("/connections/details", h.connectionDetails)
 	mux.HandleFunc("/logs", h.logs)
 	mux.HandleFunc("/ssh-servers", h.sshServers)
 	mux.HandleFunc("/port-forwards", h.portForwards)
 	mux.HandleFunc("/http-proxy", h.httpProxy)
 
 	mux.HandleFunc("/api/connections", h.apiConnections)
+	mux.HandleFunc("/api/connections/details", h.apiConnectionDetails)
 	mux.HandleFunc("/api/logs", h.apiLogs)
 	mux.HandleFunc("/api/ssh-servers", h.apiSSHServers)
 	mux.HandleFunc("/api/port-forwards", h.apiPortForwards)
@@ -67,6 +69,33 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) connections(w http.ResponseWriter, r *http.Request) {
 	h.templates.ExecuteTemplate(w, "connections.html", nil)
+}
+
+func (h *Handler) connectionDetails(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id parameter", http.StatusBadRequest)
+		return
+	}
+
+	conns := h.manager.GetConnections()
+
+	var connection *types.ConnectionStatus
+	for _, c := range conns {
+		if c.ID == id {
+			connection = c
+			break
+		}
+	}
+
+	if connection == nil {
+		http.Error(w, "connection not found", http.StatusNotFound)
+		return
+	}
+
+	h.templates.ExecuteTemplate(w, "connection_details.html", map[string]interface{}{
+		"Connection": connection,
+	})
 }
 
 func (h *Handler) logs(w http.ResponseWriter, r *http.Request) {
@@ -109,6 +138,22 @@ func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) apiConnections(w http.ResponseWriter, r *http.Request) {
 	conns := h.manager.GetConnections()
 	json.NewEncoder(w).Encode(conns)
+}
+
+func (h *Handler) apiConnectionDetails(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id parameter", http.StatusBadRequest)
+		return
+	}
+
+	details, err := h.manager.GetActiveConnections(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	json.NewEncoder(w).Encode(details)
 }
 
 func (h *Handler) apiLogs(w http.ResponseWriter, r *http.Request) {
@@ -340,6 +385,7 @@ func (h *Handler) apiSSHTest(w http.ResponseWriter, r *http.Request) {
 
 type Manager interface {
 	GetConnections() []*types.ConnectionStatus
+	GetActiveConnections(id string) ([]types.ActiveConnectionInfo, error)
 	GetLogs() []*types.LogEntry
 	GetSSHServers() []*types.SSHServer
 	AddSSHServer(s *types.SSHServer)
