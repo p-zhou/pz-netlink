@@ -494,8 +494,8 @@ func (a *App) checkStatus() {
 		for _, conn := range connections {
 			logger.Debug("活动连接",
 				"forward_id", id,
-				"client_ip", conn["client_ip"],
-				"duration", conn["duration"],
+				"client_ip", conn.ClientIP,
+				"duration", conn.Duration,
 			)
 		}
 	}
@@ -726,17 +726,7 @@ func (a *App) GetActiveConnections(id string) ([]types.ActiveConnectionInfo, err
 	defer a.mu.RUnlock()
 
 	if fw, ok := a.forwarders[id]; ok {
-		connections := fw.GetActiveConnections()
-		result := make([]types.ActiveConnectionInfo, len(connections))
-		for i, conn := range connections {
-			result[i] = types.ActiveConnectionInfo{
-				ID:        conn["id"].(string),
-				ClientIP:  conn["client_ip"].(string),
-				StartedAt: conn["started_at"].(time.Time),
-				Duration:  conn["duration"].(string),
-			}
-		}
-		return result, nil
+		return fw.GetActiveConnections(), nil
 	}
 
 	if px, ok := a.httpProxies[id]; ok {

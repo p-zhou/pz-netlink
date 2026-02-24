@@ -47,18 +47,21 @@
                     <tr>
                         <th>连接ID</th>
                         <th>客户端地址</th>
+                        <th id="remoteHostHeader" style="display:none;">远程主机</th>
                         <th>开始时间</th>
                         <th class="no-wrap">持续时间</th>
                     </tr>
                 </thead>
                 <tbody id="detailsTable">
-                    <tr><td colspan="4" style="text-align:center;">加载中...</td></tr>
+                    <tr><td colspan="5" style="text-align:center;">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
     </main>
     <script>
         const connectionId = '{{.Connection.ID}}';
+        const connectionType = '{{.Connection.Type}}';
+
         function formatBytes(b) {
             if(b < 1024) return b + ' B';
             if(b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
@@ -71,19 +74,34 @@
         async function loadDetails() {
             const details = await fetch('/api/connections/details?id=' + connectionId).then(r => r.json());
             const tbody = document.getElementById('detailsTable');
+            const remoteHostHeader = document.getElementById('remoteHostHeader');
             const detailsList = details || [];
+
+            if (connectionType === 'http_proxy') {
+                remoteHostHeader.style.display = '';
+            } else {
+                remoteHostHeader.style.display = 'none';
+            }
+
             if(detailsList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">暂无活动连接</td></tr>';
+                const colspan = connectionType === 'http_proxy' ? 5 : 4;
+                tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;">暂无活动连接</td></tr>`;
                 return;
             }
-            tbody.innerHTML = detailsList.map(d => `
+
+            tbody.innerHTML = detailsList.map(d => {
+                const remoteHostCell = connectionType === 'http_proxy' && d.remote_host
+                    ? `<td>${d.remote_host}</td>`
+                    : '';
+                return `
                 <tr>
                     <td class="no-wrap" style="font-family:monospace;">${d.id}</td>
                     <td>${d.client_ip}</td>
+                    ${remoteHostCell}
                     <td>${formatTime(d.started_at)}</td>
                     <td class="no-wrap">${d.duration}</td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
         loadDetails();
         setInterval(loadDetails, 5000);

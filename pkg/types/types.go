@@ -217,6 +217,10 @@ type ActiveConnectionInfo struct {
 	// ClientIP 客户端IP地址和端口
 	// 格式为 "ip:port"
 	ClientIP string `json:"client_ip"`
+	// RemoteHost 远程主机地址
+	// 对于HTTP代理，是请求的目标主机 (host:port)
+	// 对于端口转发，是转发的远程地址
+	RemoteHost string `json:"remote_host,omitempty"`
 	// StartedAt 连接开始时间
 	StartedAt time.Time `json:"started_at"`
 	// Duration 连接持续时间

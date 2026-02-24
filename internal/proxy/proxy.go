@@ -583,10 +583,11 @@ func (p *Proxy) GetActiveConnections() []types.ActiveConnectionInfo {
 	result := make([]types.ActiveConnectionInfo, 0, len(p.conns))
 	for id, info := range p.conns {
 		result = append(result, types.ActiveConnectionInfo{
-			ID:        id,
-			ClientIP:  info.clientIP,
-			StartedAt: info.startAt,
-			Duration:  time.Since(info.startAt).String(),
+			ID:         id,
+			ClientIP:   info.clientIP,
+			RemoteHost: info.targetHost,
+			StartedAt:  info.startAt,
+			Duration:   time.Since(info.startAt).String(),
 		})
 	}
 	return result

@@ -26,10 +26,11 @@ type Forwarder struct {
 }
 
 type connInfo struct {
-	local    net.Conn
-	remote   net.Conn
-	startAt  time.Time
-	clientIP string
+	local      net.Conn
+	remote     net.Conn
+	startAt    time.Time
+	clientIP   string
+	remoteHost string
 }
 
 type counterWriter struct {
@@ -136,10 +137,11 @@ func (f *Forwarder) handleConn(local net.Conn) {
 
 	connID := fmt.Sprintf("%s-%d", clientIP, time.Now().UnixNano())
 	info := &connInfo{
-		local:    local,
-		remote:   remote,
-		startAt:  time.Now(),
-		clientIP: clientIP,
+		local:      local,
+		remote:     remote,
+		startAt:    time.Now(),
+		clientIP:   clientIP,
+		remoteHost: fmt.Sprintf("%s:%d", f.config.RemoteHost, f.config.RemotePort),
 	}
 
 	f.mu.Lock()
@@ -267,17 +269,18 @@ func (f *Forwarder) GetStatus() *types.ConnectionStatus {
 	}
 }
 
-func (f *Forwarder) GetActiveConnections() []map[string]interface{} {
+func (f *Forwarder) GetActiveConnections() []types.ActiveConnectionInfo {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	result := make([]map[string]interface{}, 0, len(f.conns))
+	result := make([]types.ActiveConnectionInfo, 0, len(f.conns))
 	for id, info := range f.conns {
-		result = append(result, map[string]interface{}{
-			"id":         id,
-			"client_ip":  info.clientIP,
-			"started_at": info.startAt,
-			"duration":   time.Since(info.startAt).String(),
+		result = append(result, types.ActiveConnectionInfo{
+			ID:         id,
+			ClientIP:   info.clientIP,
+			RemoteHost: info.remoteHost,
+			StartedAt:  info.startAt,
+			Duration:   time.Since(info.startAt).String(),
 		})
 	}
 	return result
