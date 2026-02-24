@@ -114,14 +114,15 @@
             tbody.innerHTML = serversList.map(s => {
                 let statusClass = 'status-unknown';
                 let statusText = '未检查';
+                let errorIcon = '';
                 if (s.valid === true) {
                     statusClass = 'status-connected';
                     statusText = '有效';
                 } else if (s.valid === false) {
-                    statusClass = 'status-disconnected';
+                    statusClass = 'status-invalid';
                     statusText = '无效';
                     if (s.last_validation_error) {
-                        statusText += ` (${s.last_validation_error})`;
+                        errorIcon = `<span class="error-icon" onclick="showError('${s.last_validation_error.replace(/'/g, "\\'")}')">i</span>`;
                     }
                 }
                 return `
@@ -131,7 +132,7 @@
                     <td class="text-right">${s.port}</td>
                     <td>${s.username}</td>
                     <td class="no-wrap">${s.auth_type}</td>
-                    <td class="no-wrap ${statusClass}">${statusText}</td>
+                    <td class="no-wrap ${statusClass}">${statusText}${errorIcon}</td>
                     <td class="actions">
                         <button class="btn btn-test" onclick="testServer('${s.id}', this)">测试</button>
                         <button class="btn btn-edit" onclick="editServer('${s.id}', '${s.name}', '${s.host}', ${s.port}, '${s.username}', '${s.auth_type}', '${s.private_key||''}', ${s.keep_alive_interval}, '${s.password}')">编辑</button>
@@ -210,6 +211,9 @@
                     await performRestart();
                 }
             }
+        }
+        function showError(message) {
+            showConfirm(message);
         }
         async function testServer(id, btn) {
             const originalText = btn.textContent;

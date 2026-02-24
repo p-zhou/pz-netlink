@@ -29,6 +29,25 @@ th { background: #f8fafc; font-weight: 600; color: #475569; white-space: nowrap;
 .status-error { color: #ea580c; }
 .status-invalid { color: #dc2626; }
 .status-unknown { color: #64748b; }
+.error-icon {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+    text-align: center;
+    margin-left: 0.5rem;
+    border-radius: 50%;
+    background: #dc2626;
+    color: white;
+    font-weight: bold;
+    font-style: italic;
+    cursor: pointer;
+    font-size: 0.75rem;
+    vertical-align: middle;
+}
+.error-icon:hover {
+    background: #b91c1c;
+}
 .actions { display: flex; gap: 0.5rem; min-width: fit-content; white-space: nowrap; }
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; margin-bottom: 0.5rem; color: #475569; font-size: 0.875rem; }
