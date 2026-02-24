@@ -64,10 +64,24 @@
                     apiCall('/api/ssh-servers'),
                     apiCall('/api/http-proxies')
                 ]);
-                document.getElementById('connectionCount').textContent = (conns || []).length;
-                document.getElementById('forwardCount').textContent = (forwards || []).filter(f => f.enabled).length;
-                document.getElementById('sshCount').textContent = (ssh || []).length;
-                document.getElementById('proxyCount').textContent = (proxies || []).filter(p => p.enabled).length;
+
+                const connectionCount = (conns || []).length;
+                document.getElementById('connectionCount').textContent = connectionCount;
+
+                const enabledForwards = (forwards || []).filter(f => f.enabled);
+                const invalidForwards = enabledForwards.filter(f => !f.ssh_server_valid);
+                const forwardHTML = enabledForwards.length + (invalidForwards.length > 0 ? `<span class="stat-invalid"> / ${invalidForwards.length}</span>` : '');
+                document.getElementById('forwardCount').innerHTML = forwardHTML;
+
+                const sshList = ssh || [];
+                const invalidSSH = sshList.filter(s => s.valid === false);
+                const sshHTML = sshList.length + (invalidSSH.length > 0 ? `<span class="stat-invalid"> / ${invalidSSH.length}</span>` : '');
+                document.getElementById('sshCount').innerHTML = sshHTML;
+
+                const enabledProxies = (proxies || []).filter(p => p.enabled);
+                const invalidProxies = enabledProxies.filter(p => !p.ssh_server_valid);
+                const proxyHTML = enabledProxies.length + (invalidProxies.length > 0 ? `<span class="stat-invalid"> / ${invalidProxies.length}</span>` : '');
+                document.getElementById('proxyCount').innerHTML = proxyHTML;
             } catch(e) { console.error(e); }
         }
         async function restartService() {

@@ -68,6 +68,7 @@ dialog::backdrop { background: rgba(0,0,0,0.5); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
 .stat { background: #f8fafc; padding: 1rem; border-radius: 6px; text-align: center; }
 .stat-value { font-size: 1.5rem; font-weight: bold; color: #2563eb; }
+.stat-value .stat-invalid { font-size: 0.875rem; color: #dc2626; margin-left: 0.25rem; }
 .stat-label { color: #64748b; font-size: 0.875rem; margin-top: 0.25rem; }
 .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
 .info-box p { color: #1e40af; margin: 0.25rem 0; }
