@@ -529,9 +529,9 @@ func (p *Proxy) Stop() error {
 }
 
 func (p *Proxy) GetStatus() *types.ConnectionStatus {
-	status := "disconnected"
+	status := types.ConnectionStatusDisconnected
 	if p.running.Load() && p.listener != nil {
-		status = "connected"
+		status = types.ConnectionStatusConnected
 	}
 
 	p.mu.RLock()

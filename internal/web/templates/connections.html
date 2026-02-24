@@ -62,8 +62,7 @@
             const statusMap = {
                 'connected': '已连接',
                 'disconnected': '已断开',
-                'invalid': '无效',
-                '无效': '无效'
+                'invalid': '无效'
             };
             return statusMap[status] || status;
         }
@@ -71,8 +70,7 @@
             const classMap = {
                 'connected': 'status-connected',
                 'disconnected': 'status-disconnected',
-                'invalid': 'status-invalid',
-                '无效': 'status-invalid'
+                'invalid': 'status-invalid'
             };
             return classMap[status] || 'status-unknown';
         }

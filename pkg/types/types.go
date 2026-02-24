@@ -137,6 +137,13 @@ type HTTPProxyWithStatus struct {
 	SSHServerName  string `json:"ssh_server_name"`
 }
 
+// 连接状态常量
+const (
+	ConnectionStatusConnected    = "connected"
+	ConnectionStatusDisconnected = "disconnected"
+	ConnectionStatusInvalid      = "invalid"
+)
+
 // ConnectionStatus 表示活动连接的状态信息
 // 用于在Web界面中展示当前所有活动连接的实时状态
 type ConnectionStatus struct {

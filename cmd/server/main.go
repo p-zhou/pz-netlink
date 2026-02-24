@@ -645,7 +645,7 @@ func (a *App) GetConnections() []*types.ConnectionStatus {
 			if serverName == "" {
 				serverName = "默认服务器"
 			}
-			conn.Status = "无效"
+			conn.Status = types.ConnectionStatusInvalid
 			conn.LastError = fmt.Sprintf("SSH服务器无效: %s", serverName)
 		}
 	}
@@ -667,7 +667,7 @@ func (a *App) GetConnections() []*types.ConnectionStatus {
 					Name:              f.Name,
 					LocalAddr:         fmt.Sprintf("%s:%d", f.ListenHost, f.ListenPort),
 					RemoteAddr:        fmt.Sprintf("%s:%d", f.RemoteHost, f.RemotePort),
-					Status:            "无效",
+					Status:            types.ConnectionStatusInvalid,
 					BytesIn:           0,
 					BytesOut:          0,
 					StartedAt:         time.Time{},
@@ -705,7 +705,7 @@ func (a *App) GetConnections() []*types.ConnectionStatus {
 						Name:              p.Name,
 						LocalAddr:         p.Listen,
 						RemoteAddr:        "",
-						Status:            "无效",
+						Status:            types.ConnectionStatusInvalid,
 						BytesIn:           0,
 						BytesOut:          0,
 						StartedAt:         time.Time{},

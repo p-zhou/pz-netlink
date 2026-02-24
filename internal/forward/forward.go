@@ -244,9 +244,9 @@ func (f *Forwarder) Stop() error {
 }
 
 func (f *Forwarder) GetStatus() *types.ConnectionStatus {
-	status := "disconnected"
+	status := types.ConnectionStatusDisconnected
 	if f.running.Load() && f.listener != nil {
-		status = "connected"
+		status = types.ConnectionStatusConnected
 	}
 
 	f.mu.RLock()
