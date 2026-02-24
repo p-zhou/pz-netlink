@@ -594,10 +594,6 @@ func (a *App) GetSSHServers() []*types.SSHServer {
 		if err == nil {
 			server.Password = encryptedPassword
 		}
-		encryptedPrivateKey, err := a.encryptPassword(server.PrivateKey)
-		if err == nil {
-			server.PrivateKey = encryptedPrivateKey
-		}
 		servers[i] = &server
 	}
 	return servers
@@ -636,14 +632,6 @@ func (a *App) UpdateSSHServer(s *types.SSHServer) {
 				}
 			} else {
 				s.Password = srv.Password
-			}
-			if s.PrivateKey != "" {
-				decryptedPrivateKey, err := a.decryptPassword(s.PrivateKey)
-				if err == nil {
-					s.PrivateKey = decryptedPrivateKey
-				}
-			} else {
-				s.PrivateKey = srv.PrivateKey
 			}
 			a.config.SSHServers[i] = *s
 			break
