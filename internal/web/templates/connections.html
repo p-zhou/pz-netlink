@@ -58,6 +58,24 @@
         function formatTime(t) {
             return new Date(t).toLocaleString();
         }
+        function formatStatus(status) {
+            const statusMap = {
+                'connected': '已连接',
+                'disconnected': '已断开',
+                'invalid': '无效',
+                '无效': '无效'
+            };
+            return statusMap[status] || status;
+        }
+        function getStatusClass(status) {
+            const classMap = {
+                'connected': 'status-connected',
+                'disconnected': 'status-disconnected',
+                'invalid': 'status-invalid',
+                '无效': 'status-invalid'
+            };
+            return classMap[status] || 'status-unknown';
+        }
         async function loadConnections() {
             const conns = await fetch('/api/connections').then(r => r.json());
             const tbody = document.getElementById('connectionsTable');
@@ -66,19 +84,22 @@
                 tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">暂无活动连接</td></tr>';
                 return;
             }
-            tbody.innerHTML = connsList.map(c => `
+            tbody.innerHTML = connsList.map(c => {
+                const statusText = formatStatus(c.status);
+                const statusClass = getStatusClass(c.status);
+                return `
                 <tr>
                     <td>${c.name}</td>
                     <td class="no-wrap">${c.type}</td>
                     <td>${c.local_addr}</td>
                     <td>${c.remote_addr}</td>
-                    <td class="status-${c.status} no-wrap">${c.status}</td>
+                    <td class="${statusClass} no-wrap">${statusText}</td>
                     <td class="text-right">${c.active_connections || 0}</td>
                     <td class="text-right">${formatBytes(c.bytes_in)}</td>
                     <td class="text-right">${formatBytes(c.bytes_out)}</td>
                     <td>${formatTime(c.started_at)}</td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
         loadConnections();
         setInterval(loadConnections, 5000);
