@@ -67,22 +67,22 @@
 
                 const connList = conns || [];
                 const invalidConns = connList.filter(c => c.status === 'invalid');
-                const connHTML = connList.length + (invalidConns.length > 0 ? `<span class="stat-invalid"> / ${invalidConns.length}</span>` : '');
+                const connHTML = connList.length + (invalidConns.length > 0 ? `<span class="stat-separator">/</span><span class="stat-invalid">${invalidConns.length}</span>` : '');
                 document.getElementById('connectionCount').innerHTML = connHTML;
 
                 const enabledForwards = (forwards || []).filter(f => f.enabled);
                 const invalidForwards = enabledForwards.filter(f => !f.ssh_server_valid);
-                const forwardHTML = enabledForwards.length + (invalidForwards.length > 0 ? `<span class="stat-invalid"> / ${invalidForwards.length}</span>` : '');
+                const forwardHTML = enabledForwards.length + (invalidForwards.length > 0 ? `<span class="stat-separator">/</span><span class="stat-invalid">${invalidForwards.length}</span>` : '');
                 document.getElementById('forwardCount').innerHTML = forwardHTML;
 
                 const sshList = ssh || [];
                 const invalidSSH = sshList.filter(s => s.valid === false);
-                const sshHTML = sshList.length + (invalidSSH.length > 0 ? `<span class="stat-invalid"> / ${invalidSSH.length}</span>` : '');
+                const sshHTML = sshList.length + (invalidSSH.length > 0 ? `<span class="stat-separator">/</span><span class="stat-invalid">${invalidSSH.length}</span>` : '');
                 document.getElementById('sshCount').innerHTML = sshHTML;
 
                 const enabledProxies = (proxies || []).filter(p => p.enabled);
                 const invalidProxies = enabledProxies.filter(p => !p.ssh_server_valid);
-                const proxyHTML = enabledProxies.length + (invalidProxies.length > 0 ? `<span class="stat-invalid"> / ${invalidProxies.length}</span>` : '');
+                const proxyHTML = enabledProxies.length + (invalidProxies.length > 0 ? `<span class="stat-separator">/</span><span class="stat-invalid">${invalidProxies.length}</span>` : '');
                 document.getElementById('proxyCount').innerHTML = proxyHTML;
             } catch(e) { console.error(e); }
         }
