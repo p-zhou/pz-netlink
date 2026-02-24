@@ -87,7 +87,7 @@
                 const statusClass = getStatusClass(c.status);
                 const connCount = c.active_connections || 0;
                 const connCountHtml = connCount > 0
-                    ? `<a href="/connections/details?id=${c.id}" target="_blank" style="color:#0066cc; text-decoration:none;">${connCount}</a>`
+                    ? `<a href="/connections/details?id=${c.id}" target="conn-${c.id}" style="color:#0066cc; text-decoration:none;">${connCount}</a>`
                     : connCount;
                 return `
                 <tr>
