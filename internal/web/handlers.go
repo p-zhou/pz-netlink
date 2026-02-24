@@ -234,17 +234,50 @@ func (h *Handler) apiRestart(w http.ResponseWriter, r *http.Request) {
 		forwards := h.manager.GetPortForwards()
 		proxies := h.manager.GetHTTPProxies()
 
+		serverMap := make(map[string]bool)
+		for _, s := range servers {
+			serverMap[s.ID] = s.Valid
+		}
+
 		enabledForwards := 0
+		invalidForwards := 0
 		for _, f := range forwards {
 			if f.Enabled {
 				enabledForwards++
+				if !serverMap[f.SSHServerID] {
+					invalidForwards++
+				}
 			}
 		}
 
 		enabledProxies := 0
+		invalidProxies := 0
 		for _, p := range proxies {
 			if p.Enabled {
 				enabledProxies++
+				if p.SSHServerID != "" {
+					if !serverMap[p.SSHServerID] {
+						invalidProxies++
+					}
+				} else {
+					hasValidServer := false
+					for _, valid := range serverMap {
+						if valid {
+							hasValidServer = true
+							break
+						}
+					}
+					if !hasValidServer {
+						invalidProxies++
+					}
+				}
+			}
+		}
+
+		invalidSSH := 0
+		for _, s := range servers {
+			if s.Valid == false {
+				invalidSSH++
 			}
 		}
 
@@ -255,14 +288,17 @@ func (h *Handler) apiRestart(w http.ResponseWriter, r *http.Request) {
 			"ssh_servers": map[string]interface{}{
 				"total":   len(servers),
 				"enabled": len(servers),
+				"invalid": invalidSSH,
 			},
 			"port_forwards": map[string]interface{}{
 				"total":   len(forwards),
 				"enabled": enabledForwards,
+				"invalid": invalidForwards,
 			},
 			"http_proxies": map[string]interface{}{
 				"total":   len(proxies),
 				"enabled": enabledProxies,
+				"invalid": invalidProxies,
 			},
 		}
 

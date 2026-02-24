@@ -93,11 +93,19 @@ async function performRestart() {
     const res = await apiCall('/api/restart', { method: 'POST' });
     const sshTotal = res.ssh_servers.total;
     const sshEnabled = res.ssh_servers.enabled;
+    const sshInvalid = res.ssh_servers.invalid;
     const fwTotal = res.port_forwards.total;
     const fwEnabled = res.port_forwards.enabled;
+    const fwInvalid = res.port_forwards.invalid;
     const proxyTotal = res.http_proxies.total;
     const proxyEnabled = res.http_proxies.enabled;
-    showAlert(`重启完成\n\n应用启动时间：${res.app_start_time}\n最后重启时间：${res.last_restart_time}\n\nSSH服务器：共${sshTotal}个，启用${sshEnabled}个\n端口转发：共${fwTotal}个，启用${fwEnabled}个\nHTTP代理：共${proxyTotal}个，启用${proxyEnabled}个`);
+    const proxyInvalid = res.http_proxies.invalid;
+
+    const sshText = `共${sshTotal}个，启用${sshEnabled}个` + (sshInvalid > 0 ? `(含无效${sshInvalid}个)` : '');
+    const fwText = `共${fwTotal}个，启用${fwEnabled}个` + (fwInvalid > 0 ? `(含无效${fwInvalid}个)` : '');
+    const proxyText = `共${proxyTotal}个，启用${proxyEnabled}个` + (proxyInvalid > 0 ? `(含无效${proxyInvalid}个)` : '');
+
+    showAlert(`重启完成\n\n应用启动时间：${res.app_start_time}\n最后重启时间：${res.last_restart_time}\n\nSSH服务器：${sshText}\n端口转发：${fwText}\nHTTP代理：${proxyText}`);
 }
 
 document.addEventListener('DOMContentLoaded', initDialogs);
