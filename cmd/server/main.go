@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -46,10 +49,15 @@ type App struct {
 	statusCheck     *time.Ticker
 	appStartTime    time.Time
 	lastRestartTime time.Time
+	encryptionKey   []byte
 }
 
 func NewApp(configPath string) *App {
 	ctx, cancel := context.WithCancel(context.Background())
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		log.Fatal("Failed to generate encryption key:", err)
+	}
 	return &App{
 		store:           storage.New(configPath),
 		mux:             http.NewServeMux(),
@@ -61,7 +69,66 @@ func NewApp(configPath string) *App {
 		httpServer:      &http.Server{},
 		appStartTime:    time.Now(),
 		lastRestartTime: time.Now(),
+		encryptionKey:   key,
 	}
+}
+
+func (a *App) encryptPassword(plaintext string) (string, error) {
+	if plaintext == "" {
+		return "", nil
+	}
+
+	block, err := aes.NewCipher(a.encryptionKey)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err = rand.Read(nonce); err != nil {
+		return "", err
+	}
+
+	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+func (a *App) decryptPassword(ciphertext string) (string, error) {
+	if ciphertext == "" {
+		return "", nil
+	}
+
+	data, err := base64.StdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(a.encryptionKey)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return "", errors.New("ciphertext too short")
+	}
+
+	nonce, ciphertextBytes := data[:nonceSize], data[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertextBytes, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
 }
 
 func (a *App) LoadConfig() error {
@@ -522,7 +589,12 @@ func (a *App) GetSSHServers() []*types.SSHServer {
 	defer a.mu.RUnlock()
 	servers := make([]*types.SSHServer, len(a.config.SSHServers))
 	for i := range a.config.SSHServers {
-		servers[i] = &a.config.SSHServers[i]
+		server := a.config.SSHServers[i]
+		encryptedPassword, err := a.encryptPassword(server.Password)
+		if err == nil {
+			server.Password = encryptedPassword
+		}
+		servers[i] = &server
 	}
 	return servers
 }
@@ -553,6 +625,14 @@ func (a *App) UpdateSSHServer(s *types.SSHServer) {
 	defer a.mu.Unlock()
 	for i, srv := range a.config.SSHServers {
 		if srv.ID == s.ID {
+			if s.Password != "" {
+				decryptedPassword, err := a.decryptPassword(s.Password)
+				if err == nil {
+					s.Password = decryptedPassword
+				}
+			} else {
+				s.Password = srv.Password
+			}
 			a.config.SSHServers[i] = *s
 			break
 		}
