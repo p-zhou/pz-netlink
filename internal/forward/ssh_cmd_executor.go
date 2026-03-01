@@ -3,10 +3,12 @@ package forward
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"pz-netlink/internal/logger"
@@ -42,17 +44,14 @@ func (f *SSHCmdForwarder) buildSSHArgs() []string {
 		"-o", "ServerAliveCountMax=3",
 		"-o", "ExitOnForwardFailure=yes",
 		"-o", "TCPKeepAlive=yes",
+		"-o", "BatchMode=yes",
 	}
 
-	if f.sshServer.AuthType == "password" {
-		args = append(args, "-o", "PasswordAuthentication=yes")
-		args = append(args, "-o", "BatchMode=no")
-	} else if f.sshServer.AuthType == "key" {
+	if f.sshServer.AuthType == "key" {
 		args = append(args, "-o", "PasswordAuthentication=no")
 		if f.sshServer.PrivateKey != "" {
 			args = append(args, "-i", f.sshServer.PrivateKey)
 		}
-		args = append(args, "-o", "BatchMode=yes")
 	}
 
 	localAddr := fmt.Sprintf("0.0.0.0:%d", f.config.ListenPort)
@@ -68,9 +67,35 @@ func (f *SSHCmdForwarder) buildSSHArgs() []string {
 	return args
 }
 
+func (f *SSHCmdForwarder) buildSSHpassArgs() []string {
+	sshArgs := f.buildSSHArgs()
+
+	if f.sshServer.AuthType == "password" {
+		sshpassArgs := []string{"-e", "ssh"}
+		sshpassArgs = append(sshpassArgs, sshArgs...)
+		return sshpassArgs
+	}
+
+	return nil
+}
+
 func (f *SSHCmdForwarder) buildSSHCommand() string {
+	if f.sshServer.AuthType == "password" {
+		args := f.buildSSHpassArgs()
+		return fmt.Sprintf("SSHPASS=*** sshpass %s", strings.Join(args, " "))
+	}
+
 	args := f.buildSSHArgs()
 	return fmt.Sprintf("ssh %s", strings.Join(args, " "))
+}
+
+func (f *SSHCmdForwarder) checkSSHpassAvailable() bool {
+	path, err := exec.LookPath("sshpass")
+	if err != nil {
+		return false
+	}
+	logger.Info("sshpass 可用", "path", path)
+	return true
 }
 
 func (f *SSHCmdForwarder) Start() error {
@@ -85,29 +110,33 @@ func (f *SSHCmdForwarder) Start() error {
 		"ssh_command", f.sshCommand,
 	)
 
-	args := f.buildSSHArgs()
-	f.cmd = exec.Command("ssh", args...)
-
 	f.sshLogsBuf = &bytes.Buffer{}
-	f.cmd.Stdout = f.sshLogsBuf
-	f.cmd.Stderr = f.sshLogsBuf
 
 	if f.sshServer.AuthType == "password" {
-		stdinPipe, err := f.cmd.StdinPipe()
-		if err != nil {
-			logger.Error("SSH 命令转发启动失败",
+		if !f.checkSSHpassAvailable() {
+			logger.Error("sshpass 不可用，请先安装 sshpass",
 				"forward_name", f.config.Name,
 				"forward_id", f.config.ID,
-				"error", err,
 			)
-			return fmt.Errorf("failed to create stdin pipe: %w", err)
+			return fmt.Errorf("sshpass is not available, please install it first")
 		}
 
-		go func() {
-			defer stdinPipe.Close()
-			stdinPipe.Write([]byte(f.sshServer.Password + "\n"))
-		}()
+		args := f.buildSSHpassArgs()
+		f.cmd = exec.Command("sshpass", args...)
+		f.cmd.Env = append(os.Environ(), fmt.Sprintf("SSHPASS=%s", f.sshServer.Password))
+		f.cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setpgid: true,
+		}
+	} else {
+		args := f.buildSSHArgs()
+		f.cmd = exec.Command("ssh", args...)
+		f.cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setpgid: true,
+		}
 	}
+
+	f.cmd.Stdout = f.sshLogsBuf
+	f.cmd.Stderr = f.sshLogsBuf
 
 	if err := f.cmd.Start(); err != nil {
 		logger.Error("SSH 命令转发启动失败",
