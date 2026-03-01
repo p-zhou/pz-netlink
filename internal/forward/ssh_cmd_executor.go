@@ -30,22 +30,26 @@ func NewSSHCmdForwarder(cfg *types.PortForward, sshServer *types.SSHServer) *SSH
 	}
 }
 
-func (f *SSHCmdForwarder) buildSSHCommand() string {
+func (f *SSHCmdForwarder) buildSSHArgs() []string {
 	args := []string{
 		"-N",
 		"-T",
-		"-o", "StrictHostKeyChecking=yes",
+		"-o", "StrictHostKeyChecking=accept-new",
 		"-o", "ServerAliveInterval=30",
 		"-o", "ServerAliveCountMax=3",
+		"-o", "ExitOnForwardFailure=yes",
+		"-o", "TCPKeepAlive=yes",
 	}
 
 	if f.sshServer.AuthType == "password" {
 		args = append(args, "-o", "PasswordAuthentication=yes")
+		args = append(args, "-o", "BatchMode=no")
 	} else if f.sshServer.AuthType == "key" {
 		args = append(args, "-o", "PasswordAuthentication=no")
 		if f.sshServer.PrivateKey != "" {
 			args = append(args, "-i", f.sshServer.PrivateKey)
 		}
+		args = append(args, "-o", "BatchMode=yes")
 	}
 
 	localAddr := fmt.Sprintf("0.0.0.0:%d", f.config.ListenPort)
@@ -58,6 +62,11 @@ func (f *SSHCmdForwarder) buildSSHCommand() string {
 
 	args = append(args, fmt.Sprintf("%s@%s", f.sshServer.Username, f.sshServer.Host))
 
+	return args
+}
+
+func (f *SSHCmdForwarder) buildSSHCommand() string {
+	args := f.buildSSHArgs()
 	return fmt.Sprintf("ssh %s", strings.Join(args, " "))
 }
 
@@ -73,33 +82,7 @@ func (f *SSHCmdForwarder) Start() error {
 		"ssh_command", f.sshCommand,
 	)
 
-	args := []string{
-		"-N",
-		"-T",
-		"-o", "StrictHostKeyChecking=yes",
-		"-o", "ServerAliveInterval=30",
-		"-o", "ServerAliveCountMax=3",
-	}
-
-	if f.sshServer.AuthType == "password" {
-		args = append(args, "-o", "PasswordAuthentication=yes")
-	} else if f.sshServer.AuthType == "key" {
-		args = append(args, "-o", "PasswordAuthentication=no")
-		if f.sshServer.PrivateKey != "" {
-			args = append(args, "-i", f.sshServer.PrivateKey)
-		}
-	}
-
-	localAddr := fmt.Sprintf("0.0.0.0:%d", f.config.ListenPort)
-	remoteAddr := fmt.Sprintf("%s:%d", f.config.RemoteHost, f.config.RemotePort)
-	args = append(args, "-L", fmt.Sprintf("%s:%s", localAddr, remoteAddr))
-
-	if f.sshServer.Port != 22 {
-		args = append(args, "-p", fmt.Sprintf("%d", f.sshServer.Port))
-	}
-
-	args = append(args, fmt.Sprintf("%s@%s", f.sshServer.Username, f.sshServer.Host))
-
+	args := f.buildSSHArgs()
 	f.cmd = exec.Command("ssh", args...)
 
 	if f.sshServer.AuthType == "password" {
