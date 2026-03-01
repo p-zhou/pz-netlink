@@ -44,10 +44,13 @@ func (f *SSHCmdForwarder) buildSSHArgs() []string {
 		"-o", "ServerAliveCountMax=3",
 		"-o", "ExitOnForwardFailure=yes",
 		"-o", "TCPKeepAlive=yes",
-		"-o", "BatchMode=yes",
 	}
 
-	if f.sshServer.AuthType == "key" {
+	if f.sshServer.AuthType == "password" {
+		args = append(args, "-o", "BatchMode=no")
+		args = append(args, "-o", "PasswordAuthentication=yes")
+	} else if f.sshServer.AuthType == "key" {
+		args = append(args, "-o", "BatchMode=yes")
 		args = append(args, "-o", "PasswordAuthentication=no")
 		if f.sshServer.PrivateKey != "" {
 			args = append(args, "-i", f.sshServer.PrivateKey)
