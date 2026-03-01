@@ -33,6 +33,7 @@
                     <tr>
                         <th>名称</th>
                         <th>SSH服务器</th>
+                        <th>转发方式</th>
                         <th>本地</th>
                         <th>远程</th>
                         <th class="no-wrap">启用状态</th>
@@ -41,7 +42,7 @@
                     </tr>
                 </thead>
                 <tbody id="forwardTable">
-                    <tr><td colspan="7" style="text-align:center;">加载中...</td></tr>
+                    <tr><td colspan="8" style="text-align:center;">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -63,6 +64,13 @@
                     <label>SSH服务器</label>
                     <select id="forwardSSHServer" required>
                         <option value="">请选择</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>转发方式</label>
+                    <select id="forwardMode">
+                        <option value="builtin">内建</option>
+                        <option value="ssh_cmd">SSH命令</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -112,7 +120,7 @@
             const forwardsList = forwards || [];
             const tbody = document.getElementById('forwardTable');
             if(forwardsList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">暂无端口转发</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">暂无端口转发</td></tr>';
                 return;
             }
             tbody.innerHTML = forwardsList.map(f => {
@@ -125,16 +133,19 @@
                     sshStatusClass = 'status-invalid';
                     sshStatusText = '无效';
                 }
+                const forwardMode = f.forward_mode || '内建';
+                const forwardModeMap = { 'builtin': '内建', 'ssh_cmd': 'SSH命令' };
                 return `
                 <tr>
                     <td>${f.name}</td>
                     <td>${f.ssh_server_name || '未知'}</td>
+                    <td>${forwardModeMap[forwardMode] || forwardMode}</td>
                     <td>${f.listen_host}:${f.listen_port}</td>
                     <td>${f.remote_host}:${f.remote_port}</td>
                     <td class="no-wrap">${f.enabled ? '已启用' : '已禁用'}</td>
                     <td class="no-wrap ${sshStatusClass}">${sshStatusText}</td>
                     <td class="actions">
-                        <button class="btn btn-edit" onclick="editForward('${f.id}', '${f.name}', '${f.ssh_server_id}', '${f.listen_host}', ${f.listen_port}, '${f.remote_host}', ${f.remote_port}, ${f.enabled})">编辑</button>
+                        <button class="btn btn-edit" onclick="editForward('${f.id}', '${f.name}', '${f.ssh_server_id}', '${f.listen_host}', ${f.listen_port}, '${f.remote_host}', ${f.remote_port}, ${f.enabled}, '${f.forward_mode || ''}')">编辑</button>
                         <button class="btn btn-danger" onclick="deleteForward('${f.id}')">删除</button>
                     </td>
                 </tr>
@@ -152,14 +163,15 @@
         function closeModal() {
             document.getElementById('forwardModal').classList.remove('active');
         }
-        function editForward(id, name, sshServerId, listenHost, listenPort, remoteHost, remotePort, enabled) {
+        function editForward(id, name, sshServerId, listenHost, listenPort, remoteHost, remotePort, enabled, forwardMode) {
             document.getElementById('modalTitle').textContent = '编辑端口转发';
             document.getElementById('forwardId').value = id;
             document.getElementById('forwardName').value = name;
             const select = document.getElementById('forwardSSHServer');
-            select.innerHTML = servers.map(s => 
+            select.innerHTML = servers.map(s =>
                 `<option value="${s.id}" ${s.id === sshServerId ? 'selected' : ''}>${s.name}</option>`
             ).join('');
+            document.getElementById('forwardMode').value = forwardMode || 'builtin';
             document.getElementById('forwardListenHost').value = listenHost;
             document.getElementById('forwardListenPort').value = listenPort;
             document.getElementById('forwardRemoteHost').value = remoteHost;
@@ -172,6 +184,7 @@
             const data = {
                 name: document.getElementById('forwardName').value,
                 ssh_server_id: document.getElementById('forwardSSHServer').value,
+                forward_mode: document.getElementById('forwardMode').value,
                 listen_host: document.getElementById('forwardListenHost').value,
                 listen_port: parseInt(document.getElementById('forwardListenPort').value),
                 remote_host: document.getElementById('forwardRemoteHost').value,

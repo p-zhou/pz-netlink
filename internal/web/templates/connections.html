@@ -85,10 +85,11 @@
             tbody.innerHTML = connsList.map(c => {
                 const statusText = formatStatus(c.status);
                 const statusClass = getStatusClass(c.status);
+                const isSSHCmdMode = c.forward_mode === 'ssh_cmd';
                 const connCount = c.active_connections || 0;
-                const connCountHtml = connCount > 0
+                const connCountHtml = (connCount > 0 && !isSSHCmdMode)
                     ? `<a href="/connections/details?id=${c.id}" target="conn-${c.id}" style="color:#0066cc; text-decoration:none;">${connCount}</a>`
-                    : connCount;
+                    : (isSSHCmdMode ? '-' : connCount);
                 const infoIcon = `<a href="/connections/details?id=${c.id}" target="conn-${c.id}" title="详细信息" style="background:#0066cc; color:#fff; text-decoration:none; margin-left:8px; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; font-style:italic;">i</a>`;
                 return `
                 <tr>
@@ -98,8 +99,8 @@
                     <td>${c.remote_addr}</td>
                     <td class="${statusClass} no-wrap">${statusText}</td>
                     <td class="text-right">${connCountHtml}</td>
-                    <td class="text-right">${formatBytes(c.bytes_in)}</td>
-                    <td class="text-right">${formatBytes(c.bytes_out)}</td>
+                    <td class="text-right">${isSSHCmdMode ? '-' : formatBytes(c.bytes_in)}</td>
+                    <td class="text-right">${isSSHCmdMode ? '-' : formatBytes(c.bytes_out)}</td>
                     <td>${formatTime(c.started_at)}</td>
                 </tr>
             `}).join('');

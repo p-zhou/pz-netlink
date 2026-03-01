@@ -97,6 +97,10 @@ type PortForward struct {
 	// true: 启用并在服务启动时建立转发
 	// false: 禁用
 	Enabled bool `yaml:"enabled" json:"enabled" toml:"enabled"`
+	// ForwardMode 转发方式
+	// "builtin": 使用内建的 Go SSH 客户端实现（默认）
+	// "ssh_cmd": 使用系统 SSH 命令行工具实现
+	ForwardMode string `yaml:"forward_mode" json:"forward_mode" toml:"forward_mode"`
 }
 
 // HTTPProxy 定义单个HTTP代理服务配置
@@ -191,6 +195,13 @@ type ConnectionStatus struct {
 	// ActiveConnections 当前活动的子连接数
 	// 例如：端口转发时表示有多少客户端已连接到此转发
 	ActiveConnections int `json:"active_connections"`
+	// ForwardMode 转发方式
+	// "builtin": 使用内建的 Go SSH 客户端实现
+	// "ssh_cmd": 使用系统 SSH 命令行工具实现
+	ForwardMode string `json:"forward_mode,omitempty"`
+	// SSHCommand SSH 命令行（仅当 ForwardMode 为 "ssh_cmd" 时有效）
+	// 用于在详情页面显示执行的 SSH 命令参数
+	SSHCommand string `json:"ssh_command,omitempty"`
 }
 
 // LogEntry 表示一条系统日志记录

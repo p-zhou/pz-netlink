@@ -13,7 +13,7 @@ import (
 	"pz-netlink/pkg/types"
 )
 
-type Forwarder struct {
+type BuiltinForwarder struct {
 	config    *types.PortForward
 	client    *ssh.Client
 	listener  net.Listener
@@ -50,15 +50,15 @@ func (cw *counterWriter) Close() error {
 	return cw.conn.Close()
 }
 
-func NewForwarder(cfg *types.PortForward, client *ssh.Client) *Forwarder {
-	return &Forwarder{
+func NewForwarder(cfg *types.PortForward, client *ssh.Client) *BuiltinForwarder {
+	return &BuiltinForwarder{
 		config: cfg,
 		client: client,
 		conns:  make(map[string]*connInfo),
 	}
 }
 
-func (f *Forwarder) Start() error {
+func (f *BuiltinForwarder) Start() error {
 	addr := fmt.Sprintf("%s:%d", f.config.ListenHost, f.config.ListenPort)
 	logger.Info("启动端口转发服务",
 		"forward_name", f.config.Name,
@@ -91,7 +91,7 @@ func (f *Forwarder) Start() error {
 	return nil
 }
 
-func (f *Forwarder) acceptLoop() {
+func (f *BuiltinForwarder) acceptLoop() {
 	for f.running.Load() {
 		conn, err := f.listener.Accept()
 		if err != nil {
@@ -104,7 +104,7 @@ func (f *Forwarder) acceptLoop() {
 	}
 }
 
-func (f *Forwarder) handleConn(local net.Conn) {
+func (f *BuiltinForwarder) handleConn(local net.Conn) {
 	clientIP := local.RemoteAddr().String()
 	logger.Info("端口转发新连接",
 		"forward_name", f.config.Name,
@@ -165,7 +165,7 @@ func (f *Forwarder) handleConn(local net.Conn) {
 	f.removeConn(local, remote)
 }
 
-func (f *Forwarder) copyToRemote(dst, src net.Conn) {
+func (f *BuiltinForwarder) copyToRemote(dst, src net.Conn) {
 	cw := &counterWriter{conn: dst, count: &f.bytesIn}
 	n, err := io.Copy(cw, src)
 	dst.Close()
@@ -186,7 +186,7 @@ func (f *Forwarder) copyToRemote(dst, src net.Conn) {
 	}
 }
 
-func (f *Forwarder) copyFromRemote(dst, src net.Conn) {
+func (f *BuiltinForwarder) copyFromRemote(dst, src net.Conn) {
 	cw := &counterWriter{conn: dst, count: &f.bytesOut}
 	n, err := io.Copy(cw, src)
 	dst.Close()
@@ -207,7 +207,7 @@ func (f *Forwarder) copyFromRemote(dst, src net.Conn) {
 	}
 }
 
-func (f *Forwarder) removeConn(local, remote net.Conn) {
+func (f *BuiltinForwarder) removeConn(local, remote net.Conn) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for id, info := range f.conns {
@@ -225,7 +225,7 @@ func (f *Forwarder) removeConn(local, remote net.Conn) {
 	}
 }
 
-func (f *Forwarder) Stop() error {
+func (f *BuiltinForwarder) Stop() error {
 	logger.Info("停止端口转发服务",
 		"forward_name", f.config.Name,
 		"forward_id", f.config.ID,
@@ -245,7 +245,7 @@ func (f *Forwarder) Stop() error {
 	return nil
 }
 
-func (f *Forwarder) GetStatus() *types.ConnectionStatus {
+func (f *BuiltinForwarder) GetStatus() *types.ConnectionStatus {
 	status := types.ConnectionStatusDisconnected
 	if f.running.Load() && f.listener != nil {
 		status = types.ConnectionStatusConnected
@@ -266,10 +266,11 @@ func (f *Forwarder) GetStatus() *types.ConnectionStatus {
 		BytesOut:          atomic.LoadInt64(&f.bytesOut),
 		StartedAt:         f.startedAt,
 		ActiveConnections: activeConns,
+		ForwardMode:       f.config.ForwardMode,
 	}
 }
 
-func (f *Forwarder) GetActiveConnections() []types.ActiveConnectionInfo {
+func (f *BuiltinForwarder) GetActiveConnections() []types.ActiveConnectionInfo {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 

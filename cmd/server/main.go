@@ -38,7 +38,7 @@ type App struct {
 	handler         *web.Handler
 	httpHandler     http.Handler
 	httpServer      *http.Server
-	forwarders      map[string]*forward.Forwarder
+	forwarders      map[string]forward.Forwarder
 	httpProxies     map[string]*proxy.Proxy
 	sshClients      map[string]*ssh.Client
 	sshServerValid  map[string]bool
@@ -63,7 +63,7 @@ func NewApp(configPath string) *App {
 	return &App{
 		store:           storage.New(configPath),
 		mux:             http.NewServeMux(),
-		forwarders:      make(map[string]*forward.Forwarder),
+		forwarders:      make(map[string]forward.Forwarder),
 		httpProxies:     make(map[string]*proxy.Proxy),
 		sshClients:      make(map[string]*ssh.Client),
 		sshServerValid:  make(map[string]bool),
@@ -373,7 +373,16 @@ func (a *App) startPortForwards() error {
 		if !f.Enabled {
 			continue
 		}
-		client, ok := a.sshClients[f.SSHServerID]
+
+		sshServer, ok := func() (*types.SSHServer, bool) {
+			for _, s := range a.config.SSHServers {
+				if s.ID == f.SSHServerID {
+					return &s, true
+				}
+			}
+			return nil, false
+		}()
+
 		if !ok {
 			logger.Error("SSH服务器未找到",
 				"forward_name", f.Name,
@@ -383,8 +392,29 @@ func (a *App) startPortForwards() error {
 			a.log("ERROR", fmt.Sprintf("未找到用于端口转发 %s 的SSH服务器", f.Name), f.ID)
 			continue
 		}
+
 		f_copy := f
-		fw := forward.NewForwarder(&f_copy, client)
+		var fw forward.Forwarder
+
+		if f.ForwardMode == "ssh_cmd" {
+			fw = forward.NewSSHCmdForwarder(&f_copy, sshServer)
+		} else {
+			if f.ForwardMode == "" {
+				f_copy.ForwardMode = "builtin"
+			}
+			client, ok := a.sshClients[f.SSHServerID]
+			if !ok {
+				logger.Error("SSH客户端未找到",
+					"forward_name", f.Name,
+					"forward_id", f.ID,
+					"ssh_server_id", f.SSHServerID,
+				)
+				a.log("ERROR", fmt.Sprintf("未找到用于端口转发 %s 的SSH客户端", f.Name), f.ID)
+				continue
+			}
+			fw = forward.NewForwarder(&f_copy, client)
+		}
+
 		if err := fw.Start(); err != nil {
 			logger.Error("端口转发启动失败",
 				"forward_name", f.Name,
@@ -398,6 +428,7 @@ func (a *App) startPortForwards() error {
 		logger.Info("端口转发启动成功",
 			"forward_name", f.Name,
 			"forward_id", f.ID,
+			"forward_mode", f_copy.ForwardMode,
 		)
 		a.log("INFO", fmt.Sprintf("端口转发已启动: %s", f.Name), f.ID)
 	}
@@ -570,7 +601,7 @@ func (a *App) Stop() {
 	for _, fw := range a.forwarders {
 		fw.Stop()
 	}
-	a.forwarders = make(map[string]*forward.Forwarder)
+	a.forwarders = make(map[string]forward.Forwarder)
 
 	for _, px := range a.httpProxies {
 		px.Stop()
@@ -898,17 +929,43 @@ func (a *App) AddPortForward(p *types.PortForward) {
 }
 
 func (a *App) startOnePortForward(p *types.PortForward) {
-	client, ok := a.sshClients[p.SSHServerID]
+	sshServer, ok := func() (*types.SSHServer, bool) {
+		for _, s := range a.config.SSHServers {
+			if s.ID == p.SSHServerID {
+				return &s, true
+			}
+		}
+		return nil, false
+	}()
+
 	if !ok {
 		a.log("ERROR", "未找到SSH服务器", p.ID)
 		return
 	}
-	f_copy := *p
-	fw := forward.NewForwarder(&f_copy, client)
+
+	p_copy := *p
+	if p_copy.ForwardMode == "" {
+		p_copy.ForwardMode = "builtin"
+	}
+
+	var fw forward.Forwarder
+
+	if p_copy.ForwardMode == "ssh_cmd" {
+		fw = forward.NewSSHCmdForwarder(&p_copy, sshServer)
+	} else {
+		client, ok := a.sshClients[p.SSHServerID]
+		if !ok {
+			a.log("ERROR", "未找到SSH客户端", p.ID)
+			return
+		}
+		fw = forward.NewForwarder(&p_copy, client)
+	}
+
 	if err := fw.Start(); err != nil {
 		a.log("ERROR", fmt.Sprintf("启动失败: %v", err), p.ID)
 		return
 	}
+
 	a.mu.Lock()
 	a.forwarders[p.ID] = fw
 	a.mu.Unlock()
