@@ -3,8 +3,6 @@ package forward
 import (
 	"bytes"
 	"fmt"
-	"io"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -91,7 +89,8 @@ func (f *SSHCmdForwarder) Start() error {
 	f.cmd = exec.Command("ssh", args...)
 
 	f.sshLogsBuf = &bytes.Buffer{}
-	multiWriter := io.MultiWriter(os.Stdout, f.sshLogsBuf)
+	f.cmd.Stdout = f.sshLogsBuf
+	f.cmd.Stderr = f.sshLogsBuf
 
 	if f.sshServer.AuthType == "password" {
 		stdinPipe, err := f.cmd.StdinPipe()
@@ -109,9 +108,6 @@ func (f *SSHCmdForwarder) Start() error {
 			stdinPipe.Write([]byte(f.sshServer.Password + "\n"))
 		}()
 	}
-
-	f.cmd.Stdout = multiWriter
-	f.cmd.Stderr = multiWriter
 
 	if err := f.cmd.Start(); err != nil {
 		logger.Error("SSH 命令转发启动失败",

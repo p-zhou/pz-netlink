@@ -78,6 +78,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/connections", h.apiConnections)
 	mux.HandleFunc("/api/connections/details", h.apiConnectionDetails)
+	mux.HandleFunc("/api/connections/ssh-logs", h.apiConnectionSSHLogs)
 	mux.HandleFunc("/api/logs", h.apiLogs)
 	mux.HandleFunc("/api/ssh-servers", h.apiSSHServers)
 	mux.HandleFunc("/api/port-forwards", h.apiPortForwards)
@@ -179,6 +180,23 @@ func (h *Handler) apiConnectionDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(details)
+}
+
+func (h *Handler) apiConnectionSSHLogs(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "missing id parameter", http.StatusBadRequest)
+		return
+	}
+
+	logs, err := h.manager.GetSSHLogs(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write([]byte(logs))
 }
 
 func (h *Handler) apiLogs(w http.ResponseWriter, r *http.Request) {
@@ -411,6 +429,7 @@ func (h *Handler) apiSSHTest(w http.ResponseWriter, r *http.Request) {
 type Manager interface {
 	GetConnections() []*types.ConnectionStatus
 	GetActiveConnections(id string) ([]types.ActiveConnectionInfo, error)
+	GetSSHLogs(id string) (string, error)
 	GetLogs() []*types.LogEntry
 	GetSSHServers() []*types.SSHServer
 	AddSSHServer(s *types.SSHServer)

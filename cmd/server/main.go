@@ -767,6 +767,20 @@ func (a *App) GetActiveConnections(id string) ([]types.ActiveConnectionInfo, err
 	return nil, fmt.Errorf("connection not found")
 }
 
+func (a *App) GetSSHLogs(id string) (string, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	if fw, ok := a.forwarders[id]; ok {
+		if sshCmdFw, ok := fw.(*forward.SSHCmdForwarder); ok {
+			return sshCmdFw.GetSSHLogs(), nil
+		}
+		return "", fmt.Errorf("not an SSH command forwarder")
+	}
+
+	return "", fmt.Errorf("connection not found")
+}
+
 func (a *App) getFirstValidSSHServerID() string {
 	for _, s := range a.config.SSHServers {
 		if a.sshServerValid[s.ID] {

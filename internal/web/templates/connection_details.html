@@ -42,18 +42,25 @@
                     <div><strong>发送:</strong> {{formatBytes .Connection.BytesOut}}</div>
                     {{end}}
                 </div>
-                {{if and (eq .Connection.Type "port_forward") .Connection.ForwardMode}}
+                {{if eq .Connection.ForwardMode "ssh_cmd"}}
                 <div style="margin-top:0.5rem; padding:0.75rem; background:#e8f4f8; border-radius:4px; border-left:3px solid #009688;">
-                    <div><strong>转发方式:</strong> {{if eq .Connection.ForwardMode "builtin"}}内建{{else if eq .Connection.ForwardMode "ssh_cmd"}}SSH命令{{else}}{{.Connection.ForwardMode}}{{end}}</div>
-                    {{if eq .Connection.ForwardMode "ssh_cmd"}}
+                    <div><strong>转发方式:</strong> SSH命令</div>
                     <div style="margin-top:0.5rem;">
                         <div style="margin-bottom:0.25rem;"><strong>SSH 命令行:</strong></div>
                         <div style="font-family:monospace; font-size:0.85rem; color:#d32f2f; word-break:break-all; background:#fff; padding:0.5rem; border-radius:3px;">{{.Connection.SSHCommand}}</div>
                     </div>
-                    {{end}}
                 </div>
                 {{end}}
             </div>
+            {{if eq .Connection.ForwardMode "ssh_cmd"}}
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3>SSH 日志输出</h3>
+                <button class="btn btn-refresh" onclick="loadSSHLogs()">刷新</button>
+            </div>
+            <div style="margin-bottom:1rem;">
+                <pre id="sshLogs" style="background:#1e1e1e; color:#d4d4d4; padding:1rem; border-radius:4px; font-size:0.85rem; max-height:500px; overflow-y:auto; white-space:pre-wrap; word-wrap:break-word;">加载中...</pre>
+            </div>
+            {{else}}
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                 <h3>活动连接 ({{.Connection.ActiveConnections}})</h3>
                 <button class="btn btn-refresh" onclick="loadDetails()">刷新</button>
@@ -72,12 +79,14 @@
                     <tr><td colspan="5" style="text-align:center;">加载中...</td></tr>
                 </tbody>
             </table>
+            {{end}}
         </div>
     </main>
     <script>
         const connectionId = '{{.Connection.ID}}';
         const connectionType = '{{.Connection.Type}}';
-
+        const forwardMode = '{{.Connection.ForwardMode}}';
+ 
         function formatBytes(b) {
             if(b < 1024) return b + ' B';
             if(b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
@@ -92,19 +101,19 @@
             const tbody = document.getElementById('detailsTable');
             const remoteHostHeader = document.getElementById('remoteHostHeader');
             const detailsList = details || [];
-
+ 
             if (connectionType === 'http_proxy') {
                 remoteHostHeader.style.display = '';
             } else {
                 remoteHostHeader.style.display = 'none';
             }
-
+ 
             if(detailsList.length === 0) {
                 const colspan = connectionType === 'http_proxy' ? 5 : 4;
                 tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;">暂无活动连接</td></tr>`;
                 return;
             }
-
+ 
             tbody.innerHTML = detailsList.map(d => {
                 const remoteHostCell = connectionType === 'http_proxy' && d.remote_host
                     ? `<td>${d.remote_host}</td>`
@@ -119,8 +128,24 @@
                 </tr>
             `}).join('');
         }
+        async function loadSSHLogs() {
+            const logsDiv = document.getElementById('sshLogs');
+            if (!logsDiv) return;
+            
+            try {
+                const logs = await fetch('/api/connections/ssh-logs?id=' + connectionId).then(r => r.text());
+                logsDiv.textContent = logs || '暂无日志';
+            } catch (error) {
+                logsDiv.textContent = '加载日志失败: ' + error.message;
+            }
+        }
+        {{if ne .Connection.ForwardMode "ssh_cmd"}}
         loadDetails();
         setInterval(loadDetails, 5000);
+        {{else}}
+        loadSSHLogs();
+        setInterval(loadSSHLogs, 5000);
+        {{end}}
     </script>
 </body>
 </html>
