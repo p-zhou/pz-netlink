@@ -22,8 +22,8 @@
             <a href="/http-proxy">HTTP代理</a>
         </nav>
     </header>
-    <main class="container-full">
-        <div class="card" style="display:flex; flex-direction:column; height:calc(100vh - 60px);">
+    <main class="container-full" id="mainContainer">
+        <div class="card" style="display:flex; flex-direction:column; height:calc(100vh - var(--header-height, 120px));">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-shrink:0;">
                 <h2>详细连接信息: {{.Connection.Name}}</h2>
                 <button class="btn btn-secondary" onclick="window.close()">关闭</button>
@@ -86,6 +86,21 @@
         const connectionId = '{{.Connection.ID}}';
         const connectionType = '{{.Connection.Type}}';
         const forwardMode = '{{.Connection.ForwardMode}}';
+
+        function adjustCardHeight() {
+            const header = document.querySelector('.header');
+            const mainContainer = document.getElementById('mainContainer');
+            if (header && mainContainer) {
+                const headerHeight = header.offsetHeight;
+                const mainMarginTop = parseInt(getComputedStyle(mainContainer).marginTop) || 0;
+                const mainMarginBottom = parseInt(getComputedStyle(mainContainer).marginBottom) || 0;
+                const totalHeight = headerHeight + mainMarginTop + mainMarginBottom;
+                document.documentElement.style.setProperty('--header-height', totalHeight + 'px');
+            }
+        }
+
+        window.addEventListener('load', adjustCardHeight);
+        window.addEventListener('resize', adjustCardHeight);
  
         function formatBytes(b) {
             if(b < 1024) return b + ' B';
