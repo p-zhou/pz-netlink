@@ -1,7 +1,9 @@
 package forward
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -20,6 +22,8 @@ type SSHCmdForwarder struct {
 	startedAt  time.Time
 	running    atomic.Bool
 	sshCommand string
+	sshLogs    string
+	sshLogsBuf *bytes.Buffer
 	mu         sync.RWMutex
 }
 
@@ -34,7 +38,8 @@ func (f *SSHCmdForwarder) buildSSHArgs() []string {
 	args := []string{
 		"-N",
 		"-T",
-		"-o", "StrictHostKeyChecking=accept-new",
+		"-v",
+		"-o", "StrictHostKeyChecking=yes",
 		"-o", "ServerAliveInterval=30",
 		"-o", "ServerAliveCountMax=3",
 		"-o", "ExitOnForwardFailure=yes",
@@ -85,6 +90,9 @@ func (f *SSHCmdForwarder) Start() error {
 	args := f.buildSSHArgs()
 	f.cmd = exec.Command("ssh", args...)
 
+	f.sshLogsBuf = &bytes.Buffer{}
+	multiWriter := io.MultiWriter(os.Stdout, f.sshLogsBuf)
+
 	if f.sshServer.AuthType == "password" {
 		stdinPipe, err := f.cmd.StdinPipe()
 		if err != nil {
@@ -102,8 +110,8 @@ func (f *SSHCmdForwarder) Start() error {
 		}()
 	}
 
-	f.cmd.Stdout = os.Stdout
-	f.cmd.Stderr = os.Stderr
+	f.cmd.Stdout = multiWriter
+	f.cmd.Stderr = multiWriter
 
 	if err := f.cmd.Start(); err != nil {
 		logger.Error("SSH 命令转发启动失败",
@@ -127,6 +135,11 @@ func (f *SSHCmdForwarder) Start() error {
 				)
 			}
 		}
+		f.mu.Lock()
+		if f.sshLogsBuf != nil {
+			f.sshLogs = f.sshLogsBuf.String()
+		}
+		f.mu.Unlock()
 	}()
 
 	logger.Info("SSH 命令转发服务启动成功",
@@ -166,6 +179,16 @@ func (f *SSHCmdForwarder) Stop() error {
 	}
 
 	return nil
+}
+
+func (f *SSHCmdForwarder) GetSSHLogs() string {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	if f.sshLogsBuf != nil {
+		return f.sshLogsBuf.String()
+	}
+	return f.sshLogs
 }
 
 func (f *SSHCmdForwarder) GetStatus() *types.ConnectionStatus {
